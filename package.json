@@ -1,0 +1,22 @@
+{
+  "name": "adcirc-io",
+  "version": "0.0.1",
+  "license": "BSD-3-Clause",
+  "homepage": "https://github.com/atdyer/adcirc-io",
+  "main": "build/adcirc-io.js",
+  "author": {
+    "name": "Tristan Dyer",
+    "url": "https://github.com/atdyer"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/atdyer/adcirc-io.git"
+  },
+  "scripts": {
+    "prepublish": "rm -rf build && mkdir build && rollup --banner \"$(preamble)\" -f umd -n adcirc -o build/adcirc-io.js -- index.js"
+  },
+  "devDependencies": {
+    "package-preamble": "0.0.2",
+    "rollup": "^0.41.4"
+  }
+}
