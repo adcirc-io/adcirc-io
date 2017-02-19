@@ -13,10 +13,12 @@
     "url": "https://github.com/atdyer/adcirc-io.git"
   },
   "scripts": {
+    "dev": "rollup -w --banner \"$(preamble)\" -f umd -n adcirc -o build/adcirc-io.js -- index.js",
     "prepublish": "rm -rf build && mkdir build && rollup --banner \"$(preamble)\" -f umd -n adcirc -o build/adcirc-io.js -- index.js"
   },
   "devDependencies": {
     "package-preamble": "0.0.2",
-    "rollup": "^0.41.4"
+    "rollup": "^0.41.4",
+    "rollup-watch": "^3.2.2"
   }
 }

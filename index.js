@@ -1,1 +1,1 @@
-export {default as foo} from "./src/foo"
+export { default as fort14 } from "./src/fort14"
