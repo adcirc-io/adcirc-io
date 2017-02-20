@@ -1,9 +1,9 @@
 import { default as worker } from "./worker"
-import { default as read_sequential } from "./read_sequential"
+import { default as file_reader } from "./file_reader"
 
 export default function fort14worker () {
 
-    var _worker = build_worker();
+    var _worker = new_worker();
     var _fort14worker = function () {};
 
     var _on_start;
@@ -61,7 +61,20 @@ export default function fort14worker () {
 
 }
 
-function sequential_worker () {
+function build_worker () {
+
+    var blob_loc = 0;
+    var file_loc = 0;
+
+    var line = 0;
+    var line_map = {};
+    var line_part = '';
+
+    var regex_line = /.*\r?\n/g;
+    var regex_nonwhite = /\S+/g;
+
+    var agrid;
+    var info_line;
 
     self.addEventListener( 'message', function ( message ) {
 
@@ -70,18 +83,14 @@ function sequential_worker () {
         switch ( message.type ) {
 
             case 'read':
-                read_sequential( message.file,
-                    parse_data,
-                    function () {},
-                    function () { return false; }
-                );
-                // post_start();
-                // post_progress(0);
-                // post_progress(25);
-                // post_progress(50);
-                // post_progress(75);
-                // post_progress(100);
-                // post_finish();
+
+                file_reader( message.file )
+                    // .offset( 104 )
+                    .block_size( 300 )
+                    .block_callback( parse_data )
+                    .continue_callback( keep_going )
+                    .read();
+
                 break;
 
         }
@@ -90,19 +99,48 @@ function sequential_worker () {
 
     function parse_data ( data ) {
 
-        // console.log( data.length );
-        console.log( JSON.stringify(data) );
+        // Reset the blob location
+        blob_loc = 0;
 
-        var regex = /.*\r?\n/g;
+        // Add any leftover line parts from the last parse
+        data = line_part + data;
 
-        var matches;
-        while( ( matches = regex.exec( data ) ) !== null ) {
+        // Perform matching
+        var match;
+        while ( ( match = regex_line.exec( data ) ) !== null ) {
 
-            console.log( JSON.stringify( matches[0] ), matches[0].length );
-            console.log( 'Next starts at: ' + regex.lastIndex );
+            if ( line == 0 ) {
+
+                line_map[ 'agrid' ] = file_loc + match.index;
+                agrid = match[0].trim();
+
+            }
+
+            else if ( line == 1 ) {
+
+                line_map[ 'info_line' ] = file_loc + match.index;
+                info_line = match[0].trim();
+
+            }
+
+            blob_loc = regex_line.lastIndex;
+            line += 1;
 
         }
 
+
+        line_part = data.slice( blob_loc );
+        file_loc += blob_loc;
+
+        console.log( agrid );
+        console.log( info_line );
+
+    }
+
+    var count = 0;
+    function keep_going () {
+        count += 1;
+        return count < 3;
     }
 
     function post_start () {
@@ -126,12 +164,12 @@ function sequential_worker () {
 
 }
 
-function build_worker () {
+function new_worker () {
 
     var code = '';
-    code += read_sequential.toString();
-    code += sequential_worker.toString();
-    code += 'sequential_worker();';
+    code += file_reader.toString();
+    code += build_worker.toString();
+    code += 'build_worker();';
 
     return worker( code );
 
