@@ -2,7 +2,7 @@ export default function read_sequential ( file, blob_callback, finished_callback
 
     var reader = new FileReader();
     var file_size = file.size;
-    var chunk_size = 256 * 1024;
+    var chunk_size = 300;
     var offset = 0;
     var last = '';
 
@@ -34,9 +34,10 @@ export default function read_sequential ( file, blob_callback, finished_callback
         var length = block.target.result.length;
         var newline = /\n/;
 
-        var data = block.target.result.split( newline );
-        data[0] = last + data[0];
-        last = data.pop();
+        var data = block.target.result;
+        // var data = block.target.result.split( newline );
+        // data[0] = last + data[0];
+        // last = data.pop();
 
         // Calculate offset for next read
         offset += length;
@@ -45,7 +46,7 @@ export default function read_sequential ( file, blob_callback, finished_callback
         if ( offset >= file_size ) {
 
             // There won't so pass all of the data to the parsing callback
-            data.push( last );
+            // data.push( last );
             blob_callback( data );
 
             // Now we're finished
