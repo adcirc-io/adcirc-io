@@ -57,6 +57,7 @@ function build_fort14_worker () {
                 reader = file_reader( message.file )
                     .block_callback( parse_data )
                     .finished_callback( done )
+                    .error_callback( on_error )
                     .read();
 
                 break;
@@ -78,6 +79,12 @@ function build_fort14_worker () {
 
         parse_data( '\n' );
         post_finish();
+
+    }
+
+    function on_error ( error ) {
+
+        post_error( error );
 
     }
 
@@ -283,9 +290,16 @@ function build_fort14_worker () {
         });
     }
 
+    function post_error ( error ) {
+        self.postMessage({
+            type: 'error',
+            error: error.message
+        });
+    }
+
 }
 
-export default function worker_builder () {
+export default function fort14_worker_builder () {
 
     var code = '';
     code += file_reader.toString();

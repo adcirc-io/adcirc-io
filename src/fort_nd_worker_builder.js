@@ -1,0 +1,221 @@
+import { default as file_reader } from "./file_reader"
+import { default as worker } from "./worker"
+
+function build_fortnd_worker () {
+
+    var reader;
+    var file_size;
+
+    var agrid;
+    var info_line;
+    var n_dims;
+    var num_datasets;
+    var num_nodes;
+    var ts;             // timestep in seconds
+    var ts_interval;    // timestep interval (ie. written out every ts_interval timesteps)
+
+    var timestep_map = {};
+    var timesteps = [];
+
+    self.addEventListener( 'message', function ( message ) {
+
+        message = message.data;
+
+        switch ( message.type ) {
+
+            case 'n_dims':
+
+                n_dims = message.n_dims;
+                break;
+
+            case 'read':
+
+                map_file( message.file );
+                break;
+
+        }
+
+    });
+
+    function map_file ( file ) {
+
+        // Store the file size for progress things
+        file_size = file.size;
+
+        post_start();
+
+        // Create the file reader
+        reader = file_reader( file )
+            .error_callback( on_error );
+
+        // Parse the file header
+        reader.read_block( 0, 1024, parse_header );
+
+    }
+
+    function map_timesteps () {
+
+        var header_found = false;
+        var next_timestep = 0;
+        var next_header = timesteps[ next_timestep ];
+        var next_location = 0;
+
+        // Start things off
+        reader.read_block(
+            next_location,
+            next_location + 1024,
+            parse_block
+        );
+
+        function parse_block ( data ) {
+
+            var regex_line = /.*\r?\n/g;
+            var regex_nonwhite = /\S+/g;
+            var match;
+
+            if ( header_found === false ) {
+
+                while ( ( match = regex_line.exec( data ) ) !== null ) {
+
+                    var dat = match[ 0 ].match( regex_nonwhite );
+
+                    if ( dat.length >= 2 ) {
+
+                        var test_ts = parseInt( dat[ 1 ] );
+                        if ( test_ts == next_header ) {
+
+                            // Set flag that allows us to continue
+                            header_found = true;
+
+                            // Store the mapped location
+                            timestep_map[ next_header ] = next_location + match.index;
+
+                            // Set the next location, which is the first node of the timestep
+                            next_location = next_location + regex_line.lastIndex;
+
+                            // Increment to the next timestep
+                            next_timestep += 1;
+
+                            // Post progress
+                            post_progress( 100 * ( next_timestep / num_datasets ) );
+
+                            // Determine if we need to continue
+                            if ( next_timestep < num_datasets ) {
+
+                                next_header = timesteps[ next_timestep ];
+                                reader.read_block(
+                                    next_location,
+                                    next_location + 1024,
+                                    parse_block
+                                );
+
+                            } else {
+
+                                post_finish();
+
+                            }
+                        }
+                    }
+                }
+            }
+
+            else {
+
+                match = regex_line.exec( data );
+                next_location = next_location + num_nodes * match[0].length;
+
+                header_found = false;
+
+                reader.read_block(
+                    next_location,
+                    next_location + 1024,
+                    parse_block
+                );
+
+            }
+        }
+    }
+
+    function parse_header ( data ) {
+
+        // Regexes
+        var regex_line = /.*\r?\n/g;
+        var regex_nonwhite = /\S+/g;
+
+        // Get the first line
+        var match = regex_line.exec( data );
+
+        if ( match !== null ) {
+
+            agrid = match[0];
+
+            // Get the second line
+            match = regex_line.exec( data );
+
+            if ( match !== null ) {
+
+                info_line = match[0];
+
+                var info = info_line.match( regex_nonwhite );
+                num_datasets = parseInt( info[0] );
+                num_nodes = parseInt( info[1] );
+                ts_interval = parseInt( info[3] );
+                ts = parseFloat( info[2] ) / ts_interval;
+
+                for ( var i=0; i<num_datasets; ++i ) {
+                    timesteps.push( (i+1)*ts_interval );
+                }
+
+                // Map the timesteps
+                map_timesteps();
+
+            }
+
+        }
+
+    }
+
+    function on_error ( error ) {
+
+        post_error( error );
+
+    }
+
+    function post_start () {
+        self.postMessage({
+            type: 'start'
+        });
+    }
+
+    function post_progress ( progress ) {
+        self.postMessage({
+            type: 'progress',
+            progress: progress
+        });
+    }
+
+    function post_finish () {
+        self.postMessage({
+            type: 'finish'
+        });
+    }
+
+    function post_error ( error ) {
+        self.postMessage({
+            type: 'error',
+            error: error.message
+        });
+    }
+
+}
+
+export default function fortnd_worker_builder () {
+
+    var code = '';
+    code += file_reader.toString();
+    code += build_fortnd_worker.toString();
+    code += 'build_fortnd_worker();';
+
+    return worker( code );
+
+}

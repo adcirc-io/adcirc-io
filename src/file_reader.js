@@ -26,7 +26,16 @@ export default function file_reader ( file ) {
     _r.read_block = function ( start, end, cb ) {
 
         var block = _file.slice( start, end );
-        _reader.onload = cb;
+        _reader.onload = function ( dat ) {
+
+            if ( dat.target.error !== null ) {
+                _error_callback( dat.target.error );
+                throw dat.target.error;
+            }
+
+            cb( dat.target.result );
+
+        };
         _reader.readAsText( block );
 
     };

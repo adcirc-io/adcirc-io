@@ -13,6 +13,35 @@
         label {
             padding-right: 10px;
         }
+        div {
+            padding: 10px;
+        }
+        .progress {
+            position: relative;
+            width: 100%;
+            height: 30px;
+            border-left: 1px solid darkslategray;
+            border-right: 1px solid darkslategray;
+            padding: 0;
+            margin: 10px 0;
+        }
+        .bar {
+            width: 0;
+            height: 100%;
+            padding: 0;
+            background-color: lightsteelblue;
+        }
+        .text {
+            font-family: monospace;
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            padding: 0;
+            text-align: center;
+            line-height: 30px;
+        }
     </style>
 
     <script src="../build/adcirc-io.js"></script>
@@ -21,7 +50,19 @@
 <body>
 
     <h1>Testing</h1>
-    <label for="f14">fort.14:</label><input id="f14" type="file">
+    <div>
+        <label for="f14">fort.14:</label><input id="f14" type="file">
+    </div>
+    <div>
+        <label for="f63">fort.63:</label><input id="f63" type="file">
+    </div>
+    <div>
+        <label for="f64">fort.64:</label><input id="f64" type="file">
+    </div>
+    <div class="progress">
+        <div id="progress" class="bar"></div>
+        <div id="percent" class="text">Load something.</div>
+    </div>
     <script src="test.js"></script>
 </body>
 </html>
