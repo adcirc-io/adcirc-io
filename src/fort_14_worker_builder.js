@@ -1,67 +1,10 @@
-import { default as worker } from "./worker"
 import { default as file_reader } from "./file_reader"
+import { default as worker } from "./worker"
 
-export default function fort14worker () {
+function build_fort14_worker () {
 
-    var _worker = new_worker();
-    var _fort14worker = function () {};
-
-    var _on_start;
-    var _on_progress;
-    var _on_finish;
-
-    _fort14worker.on_finish = function ( _ ) {
-        if ( !arguments.length ) return _on_finish;
-        if ( typeof _ == 'function' ) _on_finish = _;
-        return _fort14worker;
-    };
-
-    _fort14worker.on_progress = function ( _ ) {
-        if ( !arguments.length ) return _on_progress;
-        if ( typeof _ == 'function' ) _on_progress = _;
-        return _fort14worker;
-    };
-
-    _fort14worker.on_start = function ( _ ) {
-        if ( !arguments.length ) return _on_start;
-        if ( typeof _ == 'function' ) _on_start = _;
-        return _fort14worker;
-    };
-
-    _fort14worker.read = function ( file ) {
-
-        _worker.postMessage({
-            type: 'read',
-            file: file
-        });
-
-    };
-
-    _worker.addEventListener( 'message', function ( message ) {
-
-        message = message.data;
-
-        switch ( message.type ) {
-
-            case 'start':
-                if ( _on_start ) _on_start();
-                break;
-
-            case 'progress':
-                if ( _on_progress ) _on_progress( message.progress );
-                break;
-
-            case 'finish':
-                if ( _on_finish ) _on_finish();
-        }
-
-    });
-
-    return _fort14worker;
-
-}
-
-function build_worker () {
+    var reader;
+    var file_size;
 
     var blob_loc = 0;
     var file_loc = 0;
@@ -86,6 +29,19 @@ function build_worker () {
     var element_array;
     var element_map = {};
 
+    var nope;
+    var neta;
+    var nbou;
+    var nvel;
+    var elev_segments = [];
+    var flow_segments = [];
+    var segment_length = -1;
+    var segment;
+
+    var progress = 0;
+    var progress_interval = 2;
+    var next_progress = progress + progress_interval;
+
     self.addEventListener( 'message', function ( message ) {
 
         message = message.data;
@@ -94,26 +50,35 @@ function build_worker () {
 
             case 'read':
 
-                file_reader( message.file )
+                file_size = message.file.size;
+
+                post_start();
+
+                reader = file_reader( message.file )
                     .block_callback( parse_data )
                     .finished_callback( done )
                     .read();
 
                 break;
 
+            // case 'test_map':
+            //
+            //     console.log( 'starting test' );
+            //     reader.read_block( 926747, 926847, function ( d ) {
+            //         console.log( d.target.result );
+            //     });
+            //
+            //     break;
+
         }
 
     });
 
     function done () {
-        console.log( 'Nodes: ' + num_nodes );
-        console.log( 'Elements: ' + num_elements );
-        console.log( 'X-Range: ' + min_x + '\t' + max_x );
-        console.log( 'Y-Range: ' + min_y + '\t' + max_y );
-        console.log( 'Z-Range: ' + min_z + '\t' + max_z );
-        console.log( line_map );
-        console.log( node_map );
-        console.log( element_map );
+
+        parse_data( '\n' );
+        post_finish();
+
     }
 
     function parse_data ( data ) {
@@ -128,6 +93,14 @@ function build_worker () {
         var dat;
         var match;
         while ( ( match = regex_line.exec( data ) ) !== null ) {
+
+            // Progress stuff
+            if ( 100 * ( file_loc + match.index ) / file_size > next_progress ) {
+
+                post_progress( next_progress );
+                next_progress += progress_interval;
+
+            }
 
             // Read the AGRID line
             if ( line == 0 ) {
@@ -174,13 +147,83 @@ function build_worker () {
 
             }
 
+            else if ( nope === undefined ) {
+
+                line_map[ 'nope' ] = file_loc + match.index;
+
+                dat = match[0].match( regex_nonwhite );
+                nope = parseInt( dat[0] );
+
+            }
+
+            else if ( neta === undefined ) {
+
+                line_map[ 'neta' ] = file_loc + match.index;
+
+                dat = match[0].match( regex_nonwhite );
+                neta = parseInt( dat[0] );
+
+            }
+
+            else if ( elev_segments.length == nope && nbou === undefined ) {
+
+                line_map[ 'nbou' ] = file_loc + match.index;
+
+                dat = match[0].match( regex_nonwhite );
+                nbou = parseInt( dat[0] );
+
+            }
+
+            else if ( elev_segments.length == nope && nvel === undefined ) {
+
+                line_map[ 'nvel' ] = file_loc + match.index;
+
+                dat = match[0].match( regex_nonwhite );
+                nvel = parseInt( dat[0] );
+
+            }
+
+            else if ( segment_length == -1 && ( elev_segments.length < nope || flow_segments.length < nbou ) ) {
+
+                dat = match[0].match( regex_nonwhite );
+                segment_length = parseInt( dat[0] );
+                segment = [];
+
+            }
+
+            else if ( segment.length < segment_length ) {
+
+                dat = match[0].match( regex_nonwhite );
+                segment.push( parseInt( dat[0] ) );
+
+                if ( segment.length == segment_length ) {
+
+                    if ( elev_segments.length < nope ) {
+
+                        elev_segments.push( segment );
+
+                    }
+
+                    else if ( flow_segments.length < nbou ) {
+
+                        flow_segments.push( segment );
+
+                    }
+
+                    segment_length = -1;
+                    segment = [];
+
+                }
+
+            }
+
             blob_loc = regex_line.lastIndex;
             line += 1;
 
         }
 
-
         line_part = data.slice( blob_loc );
+
         file_loc += blob_loc;
 
     }
@@ -242,12 +285,12 @@ function build_worker () {
 
 }
 
-function new_worker () {
+export default function worker_builder () {
 
     var code = '';
     code += file_reader.toString();
-    code += build_worker.toString();
-    code += 'build_worker();';
+    code += build_fort14_worker.toString();
+    code += 'build_fort14_worker();';
 
     return worker( code );
 

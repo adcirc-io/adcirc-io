@@ -3,7 +3,7 @@ export default function file_reader ( file ) {
     var _file = file;
     var _file_size = file.size;
     var _reader = new FileReader();
-    var _block_size = 256*64;
+    var _block_size = 4*256*256;    // ~1MB
     var _offset = 0;
 
     var _block_callback = function () {};
@@ -20,6 +20,15 @@ export default function file_reader ( file ) {
 
     _r.read = function () {
         read_block( _offset, _block_size, file );
+        return _r;
+    };
+
+    _r.read_block = function ( start, end, cb ) {
+
+        var block = _file.slice( start, end );
+        _reader.onload = cb;
+        _reader.readAsText( block );
+
     };
 
     _r.block_size = function ( _ ) {
@@ -109,7 +118,6 @@ export default function file_reader ( file ) {
         }
 
     }
-
 
     return _r;
 

@@ -1,6 +1,6 @@
-import { default as worker } from './fort14worker'
+import { default as worker } from './fort_14_worker'
 
-export default function () {
+export default function fort14 () {
 
     var _worker = worker();
 
