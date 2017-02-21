@@ -50,7 +50,6 @@ export default function fort14worker () {
 
             case 'finish':
                 if ( _on_finish ) _on_finish();
-                _worker.postMessage({ 'type': 'test_map' });
                 break;
         }
 

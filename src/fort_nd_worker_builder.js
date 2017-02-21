@@ -33,9 +33,41 @@ function build_fortnd_worker () {
                 map_file( message.file );
                 break;
 
+            case 'timestep':
+
+                load_timestep( message.timestep_index );
+                break;
+
         }
 
     });
+
+    function load_timestep ( timestep_index ) {
+
+        if ( timestep_index < num_datasets ) {
+
+            // Get file location from mapping
+            var timestep = timesteps[ timestep_index ];
+            var start = timestep_map[ timestep ];
+            var end = timestep_index == num_datasets - 1 ? file_size : timestep_map[ timesteps[ timestep_index + 1 ] ];
+
+            var bytes = end - start;
+            console.log( bytes + ' bytes' );
+
+            var t0 = performance.now();
+            reader.read_block(
+                start,
+                end,
+                function ( data ) {
+                    var t1 = performance.now();
+                    var length = data.length;
+                    console.log( 'Read ' + length + ' bytes in ' + ( t1 - t0 ) + ' milliseconds' );
+                }
+            );
+
+        }
+
+    }
 
     function map_file ( file ) {
 

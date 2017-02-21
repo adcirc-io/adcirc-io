@@ -10,6 +10,17 @@ export default function fortndworker ( n_dims ) {
     var _on_progress;
     var _on_finish;
 
+    var _timestep_callbacks = {};
+
+    _fortndworker.load_timestep = function ( timestep_index, callback ) {
+        _timestep_callbacks[ timestep_index ] = callback;
+        _worker.postMessage({
+            type: 'timestep',
+            timestep_index: timestep_index
+        });
+        return _fortndworker;
+    };
+
     _fortndworker.on_finish = function ( _ ) {
         if ( !arguments.length ) return _on_finish;
         if ( typeof _ == 'function' ) _on_finish = _;
@@ -51,8 +62,12 @@ export default function fortndworker ( n_dims ) {
 
             case 'finish':
                 if ( _on_finish ) _on_finish();
-                _worker.postMessage({ 'type': 'test_map' });
                 break;
+
+            case 'timestep':
+                if ( message.timestep_index in _timestep_callbacks ) {
+                    _timestep_callbacks[ message.timestep_index ]( message.data );
+                }
 
         }
 

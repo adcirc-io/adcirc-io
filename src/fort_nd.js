@@ -8,6 +8,10 @@ function fortnd ( n_dims ) {
 
     }
 
+    _fortnd.load_timestep = function ( timestep_index, callback ) {
+        _worker.load_timestep( timestep_index, callback );
+    };
+
     _fortnd.on_start = function ( _ ) {
         if ( !arguments.length ) return _worker.on_start();
         _worker.on_start( _ );

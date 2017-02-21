@@ -62,15 +62,6 @@ function build_fort14_worker () {
 
                 break;
 
-            // case 'test_map':
-            //
-            //     console.log( 'starting test' );
-            //     reader.read_block( 926747, 926847, function ( d ) {
-            //         console.log( d.target.result );
-            //     });
-            //
-            //     break;
-
         }
 
     });
