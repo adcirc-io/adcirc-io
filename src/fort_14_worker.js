@@ -36,7 +36,7 @@ function build_fort14_worker () {
     var elev_segments = [];
     var flow_segments = [];
     var segment_length = -1;
-    var segment;
+    var segment = [];
 
     var nodes_read = false;
     var elements_read = false;
@@ -311,13 +311,13 @@ function build_fort14_worker () {
     function parse_element_line ( str ) {
 
         var dat = str.match( regex_nonwhite );
-        var index = line - num_nodes - 2;
+        var element_index = line - num_nodes - 2;
         var en = parseInt( dat[0] );
-        element_array[ 3 * index ] = parseInt( dat[2] ) - 1;
-        element_array[ 3 * index + 1 ] = parseInt( dat[3] ) - 1;
-        element_array[ 3 * index + 2 ] = parseInt( dat[4] ) - 1;
+        element_array[ 3 * element_index ] = parseInt( dat[2] );
+        element_array[ 3 * element_index + 1 ] = parseInt( dat[3] );
+        element_array[ 3 * element_index + 2 ] = parseInt( dat[4] );
 
-        element_map[ en ] = line - num_nodes - 2;
+        element_map[ en ] = element_index;
 
     }
 
