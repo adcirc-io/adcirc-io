@@ -38,6 +38,12 @@ function build_fort14_worker () {
     var segment_length = -1;
     var segment;
 
+    var nodes_read = false;
+    var elements_read = false;
+
+    var on_nodes = [];
+    var on_elements = [];
+
     var progress = 0;
     var progress_interval = 2;
     var next_progress = progress + progress_interval;
@@ -62,14 +68,62 @@ function build_fort14_worker () {
 
                 break;
 
+            case 'get':
+
+                if ( message.what === 'nodes' ) {
+                    on_nodes.push( post_nodes );
+                    check_queues();
+                }
+
+                if ( message.what === 'elements' ) {
+                    on_elements.push( post_elements );
+                    check_queues();
+                }
+
+                break;
+
         }
 
     });
+
+    function check_queues () {
+
+        var callback;
+
+        // Check nodes queue
+        if ( nodes_read && on_nodes.length ) {
+            while ( ( callback = on_nodes.shift() ) !== undefined ) {
+                callback();
+            }
+        }
+
+        // Check elements queue
+        if ( elements_read && on_elements.length ) {
+            while ( ( callback = on_elements.shift() ) !== undefined ) {
+                callback();
+            }
+        }
+
+    }
 
     function done () {
 
         parse_data( '\n' );
         post_finish();
+        check_queues();
+
+    }
+
+    function flatten ( map, type ) {
+
+        var flat = [];
+        for ( var key in map ) {
+            if ( map.hasOwnProperty( key ) ) {
+                flat.push( key, map[key] );
+            }
+        }
+
+        return new type( flat );
 
     }
 
@@ -137,6 +191,8 @@ function build_fort14_worker () {
 
             else if ( line >= 2 + num_nodes && line < 2 + num_nodes + num_elements ) {
 
+                nodes_read = true;
+
                 if ( line == 2 + num_nodes ) {
                     line_map[ 'elements' ] = file_loc + match.index;
                 }
@@ -146,6 +202,8 @@ function build_fort14_worker () {
             }
 
             else if ( nope === undefined ) {
+
+                elements_read = true;
 
                 line_map[ 'nope' ] = file_loc + match.index;
 
@@ -281,6 +339,32 @@ function build_fort14_worker () {
         });
     }
 
+    function post_elements () {
+        var element_map_flat = flatten( element_map, Uint32Array );
+        var message = {
+            type: 'elements',
+            element_array: element_array.buffer,
+            element_map: element_map_flat.buffer
+        };
+        self.postMessage(
+            message,
+            [ message.element_array, message.element_map ]
+        );
+    }
+
+    function post_nodes () {
+        var node_map_flat = flatten( node_map, Uint32Array );
+        var message = {
+            type: 'nodes',
+            node_array: node_array.buffer,
+            node_map: node_map_flat.buffer
+        };
+        self.postMessage(
+            message,
+            [ message.node_array, message.node_map ]
+        );
+    }
+
     function post_error ( error ) {
         self.postMessage({
             type: 'error',
@@ -290,7 +374,7 @@ function build_fort14_worker () {
 
 }
 
-export default function fort14_worker_builder () {
+export function fort14_worker_builder () {
 
     var code = '';
     code += file_reader.toString();

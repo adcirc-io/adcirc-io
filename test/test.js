@@ -16,6 +16,8 @@ function test_fort_14 () {
         .on_start( start )
         .on_progress( progress )
         .on_finish( finish )
+        .nodes( function ( nodes ) { console.log( nodes.array.length/3 + ' nodes' ); } )
+        .elements( function ( elements ) { console.log( elements.array.length/3 + ' elements' ); } )
         .read( f14_picker.files[0] );
 
 }
