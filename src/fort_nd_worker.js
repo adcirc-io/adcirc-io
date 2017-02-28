@@ -1,80 +1,253 @@
-import { default as fortnd_worker_builder } from "./fort_nd_worker_builder"
+import { default as file_reader } from "./file_reader"
+import { default as worker } from "./worker"
 
-export default function fortndworker ( n_dims ) {
+function build_fortnd_worker () {
 
-    var _n_dims = n_dims;
-    var _worker = fortnd_worker_builder();
-    var _fortndworker = function () {};
+    var reader;
+    var file_size;
 
-    var _on_start;
-    var _on_progress;
-    var _on_finish;
+    var agrid;
+    var info_line;
+    var n_dims;
+    var num_datasets;
+    var num_nodes;
+    var ts;             // timestep in seconds
+    var ts_interval;    // timestep interval (ie. written out every ts_interval timesteps)
 
-    var _timestep_callbacks = {};
+    var timestep_map = {};
+    var timesteps = [];
 
-    _fortndworker.load_timestep = function ( timestep_index, callback ) {
-        _timestep_callbacks[ timestep_index ] = callback;
-        _worker.postMessage({
-            type: 'timestep',
-            timestep_index: timestep_index
-        });
-        return _fortndworker;
-    };
-
-    _fortndworker.on_finish = function ( _ ) {
-        if ( !arguments.length ) return _on_finish;
-        if ( typeof _ == 'function' ) _on_finish = _;
-        return _fortndworker;
-    };
-
-    _fortndworker.on_progress = function ( _ ) {
-        if ( !arguments.length ) return _on_progress;
-        if ( typeof _ == 'function' ) _on_progress = _;
-        return _fortndworker;
-    };
-
-    _fortndworker.on_start = function ( _ ) {
-        if ( !arguments.length ) return _on_start;
-        if ( typeof _ == 'function' ) _on_start = _;
-        return _fortndworker;
-    };
-
-    _fortndworker.read = function ( file ) {
-        _worker.postMessage({
-            type: 'read',
-            file: file
-        });
-    };
-
-    _worker.addEventListener( 'message', function ( message ) {
+    self.addEventListener( 'message', function ( message ) {
 
         message = message.data;
 
         switch ( message.type ) {
 
-            case 'start':
-                if ( _on_start ) _on_start();
+            case 'n_dims':
+
+                n_dims = message.n_dims;
                 break;
 
-            case 'progress':
-                if ( _on_progress ) _on_progress( message.progress );
-                break;
+            case 'read':
 
-            case 'finish':
-                if ( _on_finish ) _on_finish();
+                map_file( message.file );
                 break;
 
             case 'timestep':
-                if ( message.timestep_index in _timestep_callbacks ) {
-                    _timestep_callbacks[ message.timestep_index ]( message.data );
-                }
+
+                load_timestep( message.timestep_index );
+                break;
 
         }
 
     });
 
-    _worker.postMessage({ type: 'n_dims', n_dims: _n_dims });
+    function load_timestep ( timestep_index ) {
 
-    return _fortndworker;
+        if ( timestep_index < num_datasets ) {
+
+            // Get file location from mapping
+            var timestep = timesteps[ timestep_index ];
+            var start = timestep_map[ timestep ];
+            var end = timestep_index == num_datasets - 1 ? file_size : timestep_map[ timesteps[ timestep_index + 1 ] ];
+
+            var bytes = end - start;
+            console.log( bytes + ' bytes' );
+
+            var t0 = performance.now();
+            reader.read_block(
+                start,
+                end,
+                function ( data ) {
+                    var t1 = performance.now();
+                    var length = data.length;
+                    console.log( 'Read ' + length + ' bytes in ' + ( t1 - t0 ) + ' milliseconds' );
+                }
+            );
+
+        }
+
+    }
+
+    function map_file ( file ) {
+
+        // Store the file size for progress things
+        file_size = file.size;
+
+        post_start();
+
+        // Create the file reader
+        reader = file_reader( file )
+            .error_callback( on_error );
+
+        // Parse the file header
+        reader.read_block( 0, 1024, parse_header );
+
+    }
+
+    function map_timesteps () {
+
+        var header_found = false;
+        var next_timestep = 0;
+        var next_header = timesteps[ next_timestep ];
+        var next_location = 0;
+
+        // Start things off
+        reader.read_block(
+            next_location,
+            next_location + 1024,
+            parse_block
+        );
+
+        function parse_block ( data ) {
+
+            var regex_line = /.*\r?\n/g;
+            var regex_nonwhite = /\S+/g;
+            var match;
+
+            if ( header_found === false ) {
+
+                while ( ( match = regex_line.exec( data ) ) !== null ) {
+
+                    var dat = match[ 0 ].match( regex_nonwhite );
+
+                    if ( dat.length >= 2 ) {
+
+                        var test_ts = parseInt( dat[ 1 ] );
+                        if ( test_ts == next_header ) {
+
+                            // Set flag that allows us to continue
+                            header_found = true;
+
+                            // Store the mapped location
+                            timestep_map[ next_header ] = next_location + match.index;
+
+                            // Set the next location, which is the first node of the timestep
+                            next_location = next_location + regex_line.lastIndex;
+
+                            // Increment to the next timestep
+                            next_timestep += 1;
+
+                            // Post progress
+                            post_progress( 100 * ( next_timestep / num_datasets ) );
+
+                            // Determine if we need to continue
+                            if ( next_timestep < num_datasets ) {
+
+                                next_header = timesteps[ next_timestep ];
+                                reader.read_block(
+                                    next_location,
+                                    next_location + 1024,
+                                    parse_block
+                                );
+
+                            } else {
+
+                                post_finish();
+
+                            }
+                        }
+                    }
+                }
+            }
+
+            else {
+
+                match = regex_line.exec( data );
+                next_location = next_location + num_nodes * match[0].length;
+
+                header_found = false;
+
+                reader.read_block(
+                    next_location,
+                    next_location + 1024,
+                    parse_block
+                );
+
+            }
+        }
+    }
+
+    function parse_header ( data ) {
+
+        // Regexes
+        var regex_line = /.*\r?\n/g;
+        var regex_nonwhite = /\S+/g;
+
+        // Get the first line
+        var match = regex_line.exec( data );
+
+        if ( match !== null ) {
+
+            agrid = match[0];
+
+            // Get the second line
+            match = regex_line.exec( data );
+
+            if ( match !== null ) {
+
+                info_line = match[0];
+
+                var info = info_line.match( regex_nonwhite );
+                num_datasets = parseInt( info[0] );
+                num_nodes = parseInt( info[1] );
+                ts_interval = parseInt( info[3] );
+                ts = parseFloat( info[2] ) / ts_interval;
+
+                for ( var i=0; i<num_datasets; ++i ) {
+                    timesteps.push( (i+1)*ts_interval );
+                }
+
+                // Map the timesteps
+                map_timesteps();
+
+            }
+
+        }
+
+    }
+
+    function on_error ( error ) {
+
+        post_error( error );
+
+    }
+
+    function post_start () {
+        self.postMessage({
+            type: 'start'
+        });
+    }
+
+    function post_progress ( progress ) {
+        self.postMessage({
+            type: 'progress',
+            progress: progress
+        });
+    }
+
+    function post_finish () {
+        self.postMessage({
+            type: 'finish'
+        });
+    }
+
+    function post_error ( error ) {
+        self.postMessage({
+            type: 'error',
+            error: error.message
+        });
+    }
+
+}
+
+export function fortnd_worker () {
+
+    var code = '';
+    code += file_reader.toString();
+    code += build_fortnd_worker.toString();
+    code += 'build_fortnd_worker();';
+
+    return worker( code );
 
 }

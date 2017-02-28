@@ -13,9 +13,9 @@ f64_picker.onchange = test_fort_64;
 function test_fort_14 () {
 
     var f14 = adcirc.fort14()
-        .on_start( start )
-        .on_progress( progress )
-        .on_finish( finish )
+        .on_start( start, true )
+        .on_progress( progress, true )
+        .on_finish( finish, true )
         .nodes( function ( nodes ) { console.log( nodes.array.length/3 + ' nodes' ); } )
         .elements( function ( elements ) { console.log( elements.array.length/3 + ' elements' ); } )
         .read( f14_picker.files[0] );
