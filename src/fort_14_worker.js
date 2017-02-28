@@ -311,10 +311,11 @@ function build_fort14_worker () {
     function parse_element_line ( str ) {
 
         var dat = str.match( regex_nonwhite );
+        var index = line - num_nodes - 2;
         var en = parseInt( dat[0] );
-        element_array[ 3 * en ] = parseInt( dat[2] );
-        element_array[ 3 * en + 1 ] = parseInt( dat[3] );
-        element_array[ 3 * en + 2 ] = parseInt( dat[4] );
+        element_array[ 3 * index ] = parseInt( dat[2] ) - 1;
+        element_array[ 3 * index + 1 ] = parseInt( dat[3] ) - 1;
+        element_array[ 3 * index + 2 ] = parseInt( dat[4] ) - 1;
 
         element_map[ en ] = line - num_nodes - 2;
 
