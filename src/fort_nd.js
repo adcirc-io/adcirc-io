@@ -6,9 +6,13 @@ function fortnd ( n_dims ) {
     var _worker = fortnd_worker();
     var _fortndworker = function () {};
 
-    var _on_start;
-    var _on_progress;
-    var _on_finish;
+    var _on_start = [];
+    var _on_progress = [];
+    var _on_finish = [];
+
+    var _on_start_persist = [];
+    var _on_progress_persist = [];
+    var _on_finish_persist = [];
 
     var _timestep_callbacks = {};
 
@@ -23,19 +27,28 @@ function fortnd ( n_dims ) {
 
     _fortndworker.on_finish = function ( _ ) {
         if ( !arguments.length ) return _on_finish;
-        if ( typeof _ == 'function' ) _on_finish = _;
+        if ( typeof arguments[0] === 'function' ) {
+            if ( arguments.length == 1 ) _on_finish.push( arguments[0] );
+            if ( arguments.length == 2 && arguments[1] === true ) _on_finish_persist.push( arguments[0] );
+        }
         return _fortndworker;
     };
 
     _fortndworker.on_progress = function ( _ ) {
         if ( !arguments.length ) return _on_progress;
-        if ( typeof _ == 'function' ) _on_progress = _;
+        if ( typeof arguments[0] == 'function' ) {
+            if ( arguments.length == 1 ) _on_progress.push( arguments[0] );
+            if ( arguments.length == 2 && arguments[1] === true ) _on_progress_persist.push( arguments[0] );
+        }
         return _fortndworker;
     };
 
     _fortndworker.on_start = function ( _ ) {
         if ( !arguments.length ) return _on_start;
-        if ( typeof _ == 'function' ) _on_start = _;
+        if ( typeof arguments[0] == 'function' ) {
+            if ( arguments.length == 1 ) _on_start.push( arguments[0] );
+            if ( arguments.length == 2 && arguments[1] === true ) _on_start_persist.push( arguments[0] );
+        }
         return _fortndworker;
     };
 
@@ -54,20 +67,33 @@ function fortnd ( n_dims ) {
         switch ( message.type ) {
 
             case 'start':
-                if ( _on_start ) _on_start();
+                for ( var i=0; i<_on_start_persist.length; ++i ) _on_start_persist[i]();
+                var cb;
+                while( ( cb = _on_start.shift() ) !== undefined ) cb();
                 break;
 
             case 'progress':
-                if ( _on_progress ) _on_progress( message.progress );
+                for ( var i=0; i<_on_progress_persist.length; ++i ) _on_progress_persist[i]( message.progress );
+                var cb;
+                while( ( cb = _on_progress.shift() ) !== undefined ) cb( message.progress );
                 break;
 
             case 'finish':
-                if ( _on_finish ) _on_finish();
+                for ( var i=0; i<_on_finish_persist.length; ++i ) _on_finish_persist[i]();
+                var cb;
+                while( ( cb = _on_finish.shift() ) !== undefined ) cb();
                 break;
 
             case 'timestep':
+
+                var data = {
+                    model_time: message.model_time,
+                    timestep: message.timestep,
+                    array: new Float32Array( message.array )
+                };
+
                 if ( message.timestep_index in _timestep_callbacks ) {
-                    _timestep_callbacks[ message.timestep_index ]( message.data );
+                    _timestep_callbacks[ message.timestep_index ]( data );
                 }
 
         }

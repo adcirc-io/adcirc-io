@@ -25,10 +25,10 @@ function test_fort_14 () {
 function test_fort_63 () {
 
     var f63 = adcirc.fort63()
-        .on_start( start )
-        .on_progress( progress )
+        .on_start( start, true )
+        .on_progress( progress, true )
+        .on_finish( finish, true )
         .on_finish( function () {
-            finish();
             f63.load_timestep( 100, function ( data ) {
                 console.log( data );
             });
@@ -40,10 +40,10 @@ function test_fort_63 () {
 function test_fort_64 () {
 
     var f64 = adcirc.fort64()
-        .on_start( start )
-        .on_progress( progress )
+        .on_start( start, true )
+        .on_progress( progress, true )
+        .on_finish( finish, true )
         .on_finish( function () {
-            finish();
             f64.load_timestep( 100, function ( data ) {
                 console.log( data );
             });

@@ -51,17 +51,11 @@ function build_fortnd_worker () {
             var start = timestep_map[ timestep ];
             var end = timestep_index == num_datasets - 1 ? file_size : timestep_map[ timesteps[ timestep_index + 1 ] ];
 
-            var bytes = end - start;
-            console.log( bytes + ' bytes' );
-
-            var t0 = performance.now();
             reader.read_block(
                 start,
                 end,
                 function ( data ) {
-                    var t1 = performance.now();
-                    var length = data.length;
-                    console.log( 'Read ' + length + ' bytes in ' + ( t1 - t0 ) + ' milliseconds' );
+                    post_timestep( timestep_index, parse_timestep( data ) );
                 }
             );
 
@@ -207,9 +201,61 @@ function build_fortnd_worker () {
 
     }
 
+    function parse_timestep ( data ) {
+
+        var regex_line = /.*\r?\n/g;
+        var regex_nonwhite = /\S+/g;
+        var ts = { array: new Float32Array( n_dims * num_nodes ) };
+        var match, dat;
+        var line = 0;
+
+        while ( ( match = regex_line.exec( data ) ) !== null ) {
+
+            if ( line == 0 ) {
+
+                dat = match[0].match( regex_nonwhite );
+                ts.model_time = parseFloat( dat[0] );
+                ts.timestep = parseInt( dat[1] );
+
+                line += 1;
+
+            } else {
+
+                dat = match[0].match( regex_nonwhite );
+
+                for ( var i=0; i<n_dims; ++i ) {
+                    ts.array[ line++ - 1 ] = parseFloat( dat[ 1 ] );
+                }
+
+
+            }
+
+        }
+
+        return ts;
+
+    }
+
     function on_error ( error ) {
 
         post_error( error );
+
+    }
+
+    function post_timestep ( index, timestep ) {
+
+        var message = {
+            type: 'timestep',
+            model_time: timestep.model_time,
+            timestep: timestep.timestep,
+            timestep_index: index,
+            array: timestep.array.buffer
+        };
+
+        self.postMessage(
+            message,
+            [ message.array ]
+        );
 
     }
 
