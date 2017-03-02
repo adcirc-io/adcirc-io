@@ -35,7 +35,7 @@ function build_fortnd_worker () {
 
             case 'timestep':
 
-                load_timestep( message.timestep_index );
+                load_timestep( message.model_timestep_index );
                 break;
 
         }
@@ -192,6 +192,9 @@ function build_fortnd_worker () {
                     timesteps.push( (i+1)*ts_interval );
                 }
 
+                // Post info about the timeseries data
+                post_info();
+
                 // Map the timesteps
                 map_timesteps();
 
@@ -242,13 +245,25 @@ function build_fortnd_worker () {
 
     }
 
+    function post_info () {
+        self.postMessage({
+            type: 'info',
+            file_size: file_size,                   // File size
+            num_datapoints: num_nodes,              // Number of data points per timestep
+            num_datasets: num_datasets,             // Number of complete datasets
+            num_dimensions: n_dims,                 // Number of data fields per data point
+            model_timestep: ts,                     // Number of timesteps
+            model_timestep_interval: ts_interval    // Output interval for timesteps
+        });
+    }
+
     function post_timestep ( index, timestep ) {
 
         var message = {
             type: 'timestep',
             model_time: timestep.model_time,
-            timestep: timestep.timestep,
-            timestep_index: index,
+            model_timestep: timestep.timestep,
+            model_timestep_index: index,
             array: timestep.array.buffer
         };
 

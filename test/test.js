@@ -28,10 +28,9 @@ function test_fort_63 () {
         .on_start( start, true )
         .on_progress( progress, true )
         .on_finish( finish, true )
+        .on_timestep( print_timestep_info, true )
         .on_finish( function () {
-            f63.load_timestep( 100, function ( data ) {
-                console.log( data );
-            });
+            f63.timestep( 0 );
         })
         .read( f63_picker.files[0] );
 
@@ -43,11 +42,10 @@ function test_fort_64 () {
         .on_start( start, true )
         .on_progress( progress, true )
         .on_finish( finish, true )
+        .on_timestep( print_timestep_info, true )
         .on_finish( function () {
-            f64.load_timestep( 100, function ( data ) {
-                console.log( data );
-            });
-        } )
+            f64.timestep( 0 );
+        })
         .read( f64_picker.files[0] );
 
 }
@@ -63,4 +61,13 @@ function progress ( p ) {
 function finish () {
     progress_bar.style.width = '100%';
     progress_text.innerHTML = '100%';
+}
+
+function print_timestep_info ( ts ) {
+
+    console.log( 'Model time: ' + ts.model_time() );
+    console.log( 'Model timestep: ' + ts.model_timestep() );
+    console.log( 'Timestep index: ' + ts.model_timestep_index() );
+    console.log( 'Number of data points: ' + ts.data().length / ts.dimensions() );
+
 }
