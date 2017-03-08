@@ -3,6 +3,9 @@ import { default as worker } from "./worker"
 
 function build_fortnd_worker () {
 
+    var reading = false;
+    var queue = [];
+
     var reader;
     var file_size;
 
@@ -35,12 +38,29 @@ function build_fortnd_worker () {
 
             case 'timestep':
 
-                load_timestep( message.model_timestep_index );
+                queue.push( function () {
+                    load_timestep( message.model_timestep_index );
+                });
+                if ( !reading )
+                    check_queue();
+
                 break;
 
         }
 
     });
+
+    function check_queue () {
+
+        var cb = queue.shift();
+        if ( cb ) {
+            reading = true;
+            cb();
+        } else {
+            reading = false;
+        }
+
+    }
 
     function load_timestep ( timestep_index ) {
 
@@ -56,6 +76,7 @@ function build_fortnd_worker () {
                 end,
                 function ( data ) {
                     post_timestep( timestep_index, parse_timestep( data ) );
+                    check_queue();
                 }
             );
 
