@@ -1,5 +1,6 @@
 import { fortnd_worker } from "./fort_nd_worker"
 import { timestep } from './timestep'
+import { dispatcher } from '../../adcirc-events/index'
 
 function fortnd ( n_dims ) {
 
@@ -12,71 +13,60 @@ function fortnd ( n_dims ) {
 
     var _n_dims = n_dims;
     var _worker = fortnd_worker();
-    var _fortndworker = function () {};
+    var _fortnd = dispatcher();
 
-    var _on_start = [];
-    var _on_progress = [];
-    var _on_finish = [];
-    var _on_timestep = [];
-
-    var _on_start_persist = [];
-    var _on_progress_persist = [];
-    var _on_finish_persist = [];
-    var _on_timestep_persist = [];
-
-
-    _fortndworker.timestep = function ( index ) {
+    _fortnd.timestep = function ( index ) {
         if ( index >=0 && index < _num_datasets ) {
             _worker.postMessage({
                 type: 'timestep',
                 model_timestep_index: index
             });
         }
-        return _fortndworker;
+        return _fortnd;
     };
 
-    _fortndworker.on_finish = function ( _ ) {
-        if ( !arguments.length ) return _fortndworker;
-        if ( typeof arguments[0] === 'function' ) {
-            if ( arguments.length == 1 ) _on_finish.push( arguments[0] );
-            if ( arguments.length == 2 && arguments[1] === true ) _on_finish_persist.push( arguments[0] );
-        }
-        return _fortndworker;
-    };
+    // _fortnd.on_finish = function ( _ ) {
+    //     if ( !arguments.length ) return _fortnd;
+    //     if ( typeof arguments[0] === 'function' ) {
+    //         if ( arguments.length == 1 ) _on_finish.push( arguments[0] );
+    //         if ( arguments.length == 2 && arguments[1] === true ) _on_finish_persist.push( arguments[0] );
+    //     }
+    //     return _fortnd;
+    // };
+    //
+    // _fortnd.on_progress = function ( _ ) {
+    //     if ( !arguments.length ) return _fortnd;
+    //     if ( typeof arguments[0] === 'function' ) {
+    //         if ( arguments.length == 1 ) _on_progress.push( arguments[0] );
+    //         if ( arguments.length == 2 && arguments[1] === true ) _on_progress_persist.push( arguments[0] );
+    //     }
+    //     return _fortnd;
+    // };
+    //
+    // _fortnd.on_start = function ( _ ) {
+    //     if ( !arguments.length ) return _fortnd;
+    //     if ( typeof arguments[0] === 'function' ) {
+    //         if ( arguments.length == 1 ) _on_start.push( arguments[0] );
+    //         if ( arguments.length == 2 && arguments[1] === true ) _on_start_persist.push( arguments[0] );
+    //     }
+    //     return _fortnd;
+    // };
+    //
+    // _fortnd.on_timestep = function ( _ ) {
+    //     if ( !arguments.length ) return _fortnd;
+    //     if ( typeof arguments[0] === 'function' ) {
+    //         if ( arguments.length == 1 ) _on_timestep.push( arguments[0] );
+    //         if ( arguments.length == 2 && arguments[1] === true ) _on_timestep_persist.push( arguments[0] );
+    //     }
+    //     return _fortnd;
+    // };
 
-    _fortndworker.on_progress = function ( _ ) {
-        if ( !arguments.length ) return _fortndworker;
-        if ( typeof arguments[0] === 'function' ) {
-            if ( arguments.length == 1 ) _on_progress.push( arguments[0] );
-            if ( arguments.length == 2 && arguments[1] === true ) _on_progress_persist.push( arguments[0] );
-        }
-        return _fortndworker;
-    };
-
-    _fortndworker.on_start = function ( _ ) {
-        if ( !arguments.length ) return _fortndworker;
-        if ( typeof arguments[0] === 'function' ) {
-            if ( arguments.length == 1 ) _on_start.push( arguments[0] );
-            if ( arguments.length == 2 && arguments[1] === true ) _on_start_persist.push( arguments[0] );
-        }
-        return _fortndworker;
-    };
-
-    _fortndworker.on_timestep = function ( _ ) {
-        if ( !arguments.length ) return _fortndworker;
-        if ( typeof arguments[0] === 'function' ) {
-            if ( arguments.length == 1 ) _on_timestep.push( arguments[0] );
-            if ( arguments.length == 2 && arguments[1] === true ) _on_timestep_persist.push( arguments[0] );
-        }
-        return _fortndworker;
-    };
-
-    _fortndworker.read = function ( file ) {
+    _fortnd.read = function ( file ) {
         _worker.postMessage({
             type: 'read',
             file: file
         });
-        return _fortndworker;
+        return _fortnd;
     };
 
     _worker.addEventListener( 'message', function ( message ) {
@@ -86,34 +76,56 @@ function fortnd ( n_dims ) {
         switch ( message.type ) {
 
             case 'info':
+
                 _file_size = message.file_size;
                 _num_datapoints = message.num_datapoints;
                 _num_datasets = message.num_datasets;
                 _num_dimensions = message.num_dimensions;
                 _model_timestep = message.model_timestep;
                 _model_timestep_interval = message.model_timestep_interval;
+
+                _fortnd.dispatch( {
+                    type: 'info',
+                    file_size: _file_size,
+                    num_datapoints: _num_datapoints,
+                    num_datasets: _num_datasets,
+                    num_dimensions: _num_dimensions,
+                    model_timestep: _model_timestep,
+                    model_timestep_interval: _model_timestep_interval
+                } );
+
                 break;
 
             case 'start':
-                invoke_persistent( _on_start_persist );
-                invoke_oneoff( _on_start );
+
+                _fortnd.dispatch( { type: 'start' } );
+
                 break;
 
             case 'progress':
-                invoke_persistent( _on_progress_persist, [ message.progress ] );
-                invoke_oneoff( _on_progress, [ message.progress ] );
+
+                _fortnd.dispatch( {
+                    type: 'progress',
+                    progress: message.progress
+                } );
+
                 break;
 
             case 'finish':
-                invoke_persistent( _on_finish_persist );
-                invoke_oneoff( _on_finish );
+
+                _fortnd.dispatch( { type: 'finish' } );
+
                 break;
 
             case 'timestep':
 
                 var _timestep = timestep( _n_dims, _worker, message );
-                invoke_persistent( _on_timestep_persist, [ _timestep ] );
-                invoke_oneoff( _on_timestep, [ _timestep ] );
+
+                _fortnd.dispatch( {
+                    type: 'timestep',
+                    timestep: _timestep
+                });
+
                 break;
 
         }
@@ -122,7 +134,7 @@ function fortnd ( n_dims ) {
 
     _worker.postMessage({ type: 'n_dims', n_dims: _n_dims });
 
-    return _fortndworker;
+    return _fortnd;
 
     function invoke_persistent ( list, args ) {
         for ( var i=0; i<list.length; ++i ) {
