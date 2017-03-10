@@ -39,7 +39,7 @@ function build_fortnd_worker () {
             case 'timestep':
 
                 queue.push( function () {
-                    load_timestep( message.model_timestep_index );
+                    load_timestep( message.index );
                 });
                 if ( !reading )
                     check_queue();
@@ -229,8 +229,12 @@ function build_fortnd_worker () {
 
         var regex_line = /.*\r?\n/g;
         var regex_nonwhite = /\S+/g;
-        var ts = { array: new Float32Array( n_dims * num_nodes ) };
-        var match, dat;
+        var ts = {
+            array: new Float32Array( n_dims * num_nodes ),
+            min: ( new Array( n_dims ) ).fill( Infinity ),
+            max: ( new Array( n_dims ) ).fill( -Infinity )
+        };
+        var match, dat, val;
         var line = 0;
 
         while ( ( match = regex_line.exec( data ) ) !== null ) {
@@ -248,7 +252,15 @@ function build_fortnd_worker () {
                 dat = match[0].match( regex_nonwhite );
 
                 for ( var i=0; i<n_dims; ++i ) {
-                    ts.array[ line++ - 1 ] = parseFloat( dat[ 1 ] );
+
+                    val = parseFloat( dat[ 1 ] );
+                    ts.array[ line++ - 1 ] = val;
+
+                    if ( val !== -99999 ) {
+                        if ( val < ts.min[ i ] ) ts.min[ i ] = val;
+                        else if ( val > ts.max[ i ] ) ts.max[ i ] = val;
+                    }
+
                 }
 
 
@@ -280,11 +292,18 @@ function build_fortnd_worker () {
 
     function post_timestep ( index, timestep ) {
 
+        var ranges = [];
+        for ( var i=0; i<n_dims; ++i ) {
+            ranges.push( [ timestep.min[i], timestep.max[i] ] );
+        }
+
         var message = {
             type: 'timestep',
+            data_range: ranges,
+            dimensions: n_dims,
+            index: index,
             model_time: timestep.model_time,
             model_timestep: timestep.timestep,
-            model_timestep_index: index,
             array: timestep.array.buffer
         };
 

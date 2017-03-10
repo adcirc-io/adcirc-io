@@ -66,9 +66,11 @@ function print_timestep_info ( event ) {
 
     var ts = event.timestep;
 
+    console.log( ts );
+
     console.log( 'Model time: ' + ts.model_time() );
     console.log( 'Model timestep: ' + ts.model_timestep() );
-    console.log( 'Timestep index: ' + ts.model_timestep_index() );
+    console.log( 'Timestep index: ' + ts.index() );
     console.log( 'Number of data points: ' + ts.data().length / ts.dimensions() );
 
 }

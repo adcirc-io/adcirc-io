@@ -15,18 +15,27 @@ function fortnd ( n_dims ) {
     var _worker = fortnd_worker();
     var _fortnd = dispatcher();
 
+    // Kick off the loading of a specific timestep. Optionally
+    // pass in a callback that will be called only once when
+    // the data is loaded. The 'timestep' event will also
+    // be fired when the timestep has loaded
     _fortnd.timestep = function ( index, callback ) {
+
         if ( index >=0 && index < _num_datasets ) {
 
-            _fortnd.once( 'timestep' + index, function ( event ) {
+            if ( typeof callback === 'function' ) {
 
-                callback( event );
+                _fortnd.once( 'timestep' + index, function ( event ) {
 
-            } );
+                    callback( event );
+
+                } );
+
+            }
 
             _worker.postMessage({
                 type: 'timestep',
-                model_timestep_index: index
+                index: index
             });
 
         }
@@ -93,7 +102,7 @@ function fortnd ( n_dims ) {
 
             case 'timestep':
 
-                var _timestep = timestep( _n_dims, _worker, message );
+                var _timestep = timestep( message );
 
                 _fortnd.dispatch( {
                     type: 'timestep',
@@ -101,7 +110,7 @@ function fortnd ( n_dims ) {
                 });
 
                 _fortnd.dispatch( {
-                    type: 'timestep' + _timestep.model_timestep_index(),
+                    type: 'timestep' + _timestep.index(),
                     timestep: _timestep
                 });
 
@@ -114,17 +123,6 @@ function fortnd ( n_dims ) {
     _worker.postMessage({ type: 'n_dims', n_dims: _n_dims });
 
     return _fortnd;
-
-    function invoke_persistent ( list, args ) {
-        for ( var i=0; i<list.length; ++i ) {
-            list[i].apply( list[i], args );
-        }
-    }
-
-    function invoke_oneoff ( list, args ) {
-        var cb;
-        while ( ( cb = list.shift() ) !== undefined ) cb.apply( cb, args );
-    }
 
 }
 

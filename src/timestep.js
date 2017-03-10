@@ -1,27 +1,27 @@
 
-function timestep ( dimensions, worker, message ) {
+function timestep ( message ) {
 
     var _timestep = {};
-    var _dimensions = dimensions;
-    var _worker = worker;
 
     var _array;
+    var _data_range;
+    var _dimensions;
+    var _index;
     var _model_time;
     var _model_timestep;
-    var _model_timestep_index;
 
-    var _invalidated;
-
-    if ( message.hasOwnProperty( 'model_time' ) && message.hasOwnProperty( 'model_timestep' ) &&
-         message.hasOwnProperty( 'model_timestep_index' ) && message.hasOwnProperty( 'array' ) ) {
+    if ( message.hasOwnProperty( 'data_range' ) && message.hasOwnProperty( 'dimensions' ) &&
+         message.hasOwnProperty( 'model_time' ) && message.hasOwnProperty( 'model_timestep' ) &&
+         message.hasOwnProperty( 'index' ) && message.hasOwnProperty( 'array' ) ) {
 
         try {
 
+            _data_range = message.data_range;
+            _dimensions = message.dimensions;
+            _index = message.index;
             _model_time = message.model_time;
             _model_timestep = message.model_timestep;
-            _model_timestep_index = message.model_timestep_index;
             _array = new Float32Array( message.array );
-            _invalidated = false;
 
         } catch ( e ) {
 
@@ -41,34 +41,22 @@ function timestep ( dimensions, worker, message ) {
 
     _timestep.data = function () {
 
-        if ( !_invalidated ) return _array;
-        console.warn(
-            'Data for timestep ' + _model_timestep_index + 'has already been returned to worker for caching'
-        );
+        return _array;
 
+    };
+
+    _timestep.data_range = function () {
+        return _data_range;
     };
 
     _timestep.dimensions = function () {
         return _dimensions;
     };
 
-    _timestep.finished = function () {
-
-        var message = {
-            type: 'return',
-            model_time: _model_time,
-            model_timestep: _model_timestep,
-            model_timestep_index: _model_timestep_index,
-            array: _array.buffer
-        };
-
-        _worker.postMessage(
-            message,
-            [ message.array ]
-        );
-
-        _invalidated = true;
-
+    _timestep.index = function ( _ ) {
+        if ( !arguments.length ) return _index;
+        _index = _;
+        return _timestep;
     };
 
     _timestep.model_time = function ( _ ) {
@@ -80,12 +68,6 @@ function timestep ( dimensions, worker, message ) {
     _timestep.model_timestep = function ( _ ) {
         if ( !arguments.length ) return _model_timestep;
         _model_timestep = _;
-        return _timestep;
-    };
-
-    _timestep.model_timestep_index = function ( _ ) {
-        if ( !arguments.length ) return _model_timestep_index;
-        _model_timestep_index = _;
         return _timestep;
     };
 
