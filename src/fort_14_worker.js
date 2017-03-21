@@ -358,7 +358,8 @@ function build_fort14_worker () {
         var message = {
             type: 'nodes',
             node_array: node_array.buffer,
-            node_map: node_map_flat.buffer
+            node_map: node_map_flat.buffer,
+            dimensions: 3
         };
         self.postMessage(
             message,
