@@ -78,7 +78,8 @@ export function fort14 () {
                 _nodes = {
                     array: new Float32Array( message.node_array ),
                     map: nest( new Uint32Array( message.node_map ) ),
-                    dimensions: message.dimensions
+                    dimensions: message.dimensions,
+                    names: [ 'x', 'y', 'depth' ]
                 };
 
                 _fort14.dispatch( {
