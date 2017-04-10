@@ -1,4 +1,4 @@
-import { fortnd_worker } from "./fort_nd_worker"
+import { fortnd_worker } from "./fort_nd_worker_new"
 import { timestep } from './timestep'
 import { dispatcher } from '../../adcirc-events/index'
 
@@ -98,6 +98,11 @@ function fortnd ( n_dims ) {
                 _fortnd.dispatch( { type: 'finish' } );
                 _fortnd.dispatch( { type: 'ready' } );
 
+                break;
+
+            case 'error':
+
+                _fortnd.dispatch( { type: 'error', error: message.error } );
                 break;
 
             case 'timestep':

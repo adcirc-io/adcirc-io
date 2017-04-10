@@ -33,11 +33,13 @@ function build_fortnd_worker () {
 
             case 'read':
 
+                console.log( 'MAPPING' );
                 map_file( message.file );
                 break;
 
             case 'timestep':
 
+                console.log( 'REQUESTING INDEX ' + message.index );
                 queue.push( function () {
                     load_timestep( message.index );
                 });
@@ -89,7 +91,11 @@ function build_fortnd_worker () {
         // Store the file size for progress things
         file_size = file.size;
 
+        console.log( 'File size: ' + file_size );
+
         post_start();
+
+        console.log( 'Started' );
 
         // Create the file reader
         reader = file_reader( file )
@@ -118,6 +124,8 @@ function build_fortnd_worker () {
             parse_block
         );
 
+        var tested = false;
+
         function parse_block( data ) {
 
             data = line_part + data;
@@ -134,11 +142,18 @@ function build_fortnd_worker () {
 
                 var dat = match[0].match( regex_nonwhite );
 
+                // if ( !tested ) console.log( dat[0], dat[1] );
+
                 if ( dat && dat.length >= 2 ) {
 
                     if ( !header_found ) {
 
+                        if ( !tested ) console.log( 'header not found', dat[1], timestep );
+
                         if ( parseFloat( dat[ 1 ] ) == timestep ) {
+
+                            // if ( !tested )
+                            //     console.log( 'header not found: ' + dat[1] );
 
                             header_found = true;
                             timestep_map[ timestep ] = location - line_part.length + match.index;
@@ -206,6 +221,8 @@ function build_fortnd_worker () {
                 post_finish();
 
             }
+
+            tested = true;
 
         }
 
