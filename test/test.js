@@ -2,6 +2,7 @@
 var f14_picker = document.getElementById( 'f14' );
 var f63_picker = document.getElementById( 'f63' );
 var f64_picker = document.getElementById( 'f64' );
+var poke = document.getElementById( 'poke' );
 
 var progress_bar = document.getElementById( 'progress' );
 var progress_text = document.getElementById( 'percent' );
@@ -33,6 +34,9 @@ function test_fort_63 () {
         .on( 'finish', function () { f63.timestep( 0 ); } )
         .on( 'timestep', print_timestep_info )
         .read( f63_picker.files[0] );
+
+
+    poke.onclick = f63.poke;
 
 }
 
@@ -66,7 +70,7 @@ function print_timestep_info ( event ) {
 
     var ts = event.timestep;
 
-    console.log( ts );
+    console.log( ts.data() );
 
     console.log( 'Model time: ' + ts.model_time() );
     console.log( 'Model timestep: ' + ts.model_timestep() );

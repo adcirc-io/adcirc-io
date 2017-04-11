@@ -4,6 +4,7 @@ import { default as worker } from './worker'
 function build_fortnd_worker () {
 
     var file;
+    var file_size;
     var reader;
     var num_dims;
     var num_datasets = 0;
@@ -12,6 +13,18 @@ function build_fortnd_worker () {
     var ts_interval;
 
     var timesteps = [];
+    var dequeueing = false;
+    var process_queue = [];
+    var wait_queue = [];
+
+    var mapping = {
+        block_size: 1024*1024*10,    // Read 10MB at a time
+        location: 0,
+        header: null,
+        ts_index: 0,
+        node_index: 0,
+        finished: false
+    };
 
     self.addEventListener( 'message', function ( message ) {
 
@@ -23,102 +36,82 @@ function build_fortnd_worker () {
 
                 file = message.file;
                 num_dims = message.n_dims;
-
                 read();
+                break;
+
+            case 'timestep':
+
+                enqueue( message.index );
+                if ( mapping.finished && !dequeueing ) check_queue();
+                break;
+
+            case 'poke':
+
+                enqueue( 100000 );
+                console.log( 'I got poked.' );
+                break;
 
         }
 
     });
 
-    function map_file ( start_location ) {
+    function load_timestep ( timestep_index ) {
 
-        // var block_size = 1024*1024*5;       // Read 5MB at a time
-        var block_size = 1024;
-        var location = start_location;
-        var test_num_reads = 0;
-        var test_max_reads = 5;
-
-        var header;
-        var ts_index = 0;
-        var node_index = 0;
-
+        var location = timesteps[ timestep_index ];
+        var block_size = 1024 * 1024 * 5;   // Read 5MB at a time
         var regex_line = /.*\r?\n/g;
         var regex_nonwhite = /\S+/g;
-        var match;
-
-        var last_index = 0;
-        var line_part = '';
+        var ts = {
+            array: new Float32Array( num_dims * num_nodes ),
+            index: timestep_index,
+            min: ( new Array( num_dims ) ).fill( Infinity ),
+            max: ( new Array( num_dims ) ).fill( -Infinity )
+        };
+        var match, dat, val;
+        var header;
+        var line = 0;
 
         function parse_block ( data ) {
 
-            console.log( 'read' );
-
-            data = line_part + data;
-
-            console.log( data.slice( 0, 40 ) );
-
-            while ( ( match = regex_line.exec( data ) ) !== null ) {
+            while ( ( match = regex_line.exec( data ) ) !== null && line < num_nodes ) {
 
                 if ( !header ) {
 
-                    header = match[ 0 ];
-                    var dat = header.match( regex_nonwhite );
-                    var model_time = parseFloat( dat[ 0 ] );
-                    var ts = parseInt( dat[ 1 ] );
-
-                    timesteps.push( location );
-
-                    console.log( 'Timestep ' + ts + ': ' + model_time + '\tat location ' + location );
+                    header = match[0].match( regex_nonwhite );
+                    ts.model_time = parseFloat( header[0] );
+                    ts.timestep = parseInt( header[1] );
 
                 } else {
 
-                    node_index += 1;
+                    dat = match[0].match( regex_nonwhite );
 
-                    console.log( node_index, JSON.stringify( match[0] ) );
+                    for ( var i=0; i<num_dims; ++i ) {
 
-                    if ( node_index == num_nodes ) {
+                        val = parseFloat( dat[1] );
+                        ts.array[ line++ ] = val;
 
-                        header = null;
-                        node_index = 0;
+                        if ( val !== -99999 ) {
+                            if ( val < ts.min[ i ] ) ts.min[ i ] = val;
+                            else if ( val > ts.max[ i ] ) ts.max[ i ] = val;
+                        }
 
                     }
 
                 }
 
                 location += match[0].length;
-                last_index = regex_line.lastIndex;
 
             }
 
-            line_part = '' + data.slice( last_index );
-            console.log( 'LINE PART: ' );
-            console.log( JSON.stringify( line_part ) );
-            // location += line_part.length;
+            if ( line < num_nodes ) {
 
-            if ( test_num_reads < test_max_reads ) {
-
-                test_num_reads += 1;
                 reader.read_block( location, location + block_size, parse_block );
 
             } else {
 
-            //     var i = 0;
-            //     function print_next ( data ) {
-            //
-            //         match = regex_line.exec( data );
-            //         if ( match !== null ) {
-            //
-            //             console.log( match[0] );
-            //
-            //         }
-            //         if ( i < timesteps.length ) {
-            //             i += 1;
-            //             reader.read_block( timesteps[i], timesteps[i] + 1024, print_next );
-            //         }
-            //
-            //     }
-            //     reader.read_block( timesteps[i], timesteps[i] + 1024, print_next );
-            //
+                post_timestep( ts );
+                check_queue();
+
             }
 
         }
@@ -127,7 +120,158 @@ function build_fortnd_worker () {
 
     }
 
+    function enqueue ( index ) {
+
+        if ( index < timesteps.length ) {
+
+            process_queue.push( index );
+
+        } else {
+
+            wait_queue.push( index );
+
+        }
+
+    }
+
+    function check_queue () {
+
+        // Check for waiting indices that can now be processed
+        var index;
+        var wait = wait_queue;
+        wait_queue = [];
+        while ( wait.length > 0 ) {
+
+            index = wait.shift();
+            enqueue( index );
+
+        }
+
+        index = process_queue.shift();
+        if ( index ) {
+
+            dequeueing = true;
+            load_timestep( index );
+
+        } else {
+
+            dequeueing = false;
+
+            if ( !mapping.finished ) {
+
+                continue_mapping();
+
+            }
+
+        }
+
+    }
+
+    function continue_mapping () {
+
+        var regex_line = /.*\r?\n/g;
+        var match;
+
+        function parse_block ( data ) {
+
+            while ( ( match = regex_line.exec( data ) ) !== null ) {
+
+                if ( !mapping.header ) {
+
+                    mapping.header = match[ 0 ];
+
+                    timesteps[ mapping.ts_index++ ] = mapping.location;
+                    post_progress( 100 * ( mapping.ts_index / num_datasets ) );
+
+
+                } else {
+
+                    mapping.node_index += 1;
+
+                    if ( mapping.node_index == num_nodes ) {
+
+                        mapping.header = null;
+                        mapping.node_index = 0;
+
+                    }
+
+                }
+
+                mapping.location += match[0].length;
+
+            }
+
+            if ( mapping.ts_index < num_datasets ) {
+
+                check_queue();
+                // reader.read_block( mapping.location, mapping.location + mapping.block_size, parse_block );
+
+            } else {
+
+                mapping.finished = true;
+                post_mapped();
+
+            }
+
+
+        }
+
+        reader.read_block( mapping.location, mapping.location + mapping.block_size, parse_block );
+
+    }
+
     function post_header_info () {
+
+        self.postMessage({
+            type: 'info',
+            file_size: file_size,
+            num_datapoints: num_nodes,
+            num_datasets: num_datasets,
+            num_dimensions: num_dims,
+            model_timestep: ts,
+            model_timestep_interval: ts_interval
+        });
+
+    }
+
+    function post_mapped () {
+
+        self.postMessage({
+            type: 'mapped'
+        });
+
+    }
+
+    function post_progress ( percent ) {
+
+        self.postMessage({
+            type: 'progress',
+            progress: percent
+        });
+
+    }
+
+    function post_timestep ( timestep ) {
+
+        var ranges = [];
+        for ( var i=0; i<num_dims; ++i ) {
+            ranges.push( [ timestep.min[i], timestep.max[i] ] );
+        }
+
+        var message = {
+            type: 'timestep',
+            data_range: ranges,
+            dimensions: num_dims,
+            index: timestep.index,
+            model_time: timestep.model_time,
+            model_timestep: timestep.timestep,
+            array: timestep.array.buffer
+        };
+
+        self.postMessage(
+            message,
+            [ message.array ]
+        );
 
     }
 
@@ -138,6 +282,8 @@ function build_fortnd_worker () {
     }
 
     function read_header () {
+
+        file_size = file.size;
 
         reader = file_reader( file )
             .error_callback( on_error );
@@ -171,12 +317,10 @@ function build_fortnd_worker () {
                     ts_interval = parseInt( info[3] );
                     ts = parseFloat( info[2] ) / ts_interval;
 
-                    console.log( 'HEADER INFO:' );
-                    console.log( ' - Number of nodes: ' + num_nodes );
-                    console.log( ' - Number of datasets: ' + num_datasets );
-                    console.log( ' - Number of values per node: ' + num_dims );
+                    post_header_info();
 
-                    map_file( end_of_header );
+                    mapping.location = end_of_header;
+                    continue_mapping();
 
                 }
 
@@ -185,8 +329,6 @@ function build_fortnd_worker () {
         })
 
     }
-
-
 
     function on_error ( e ) {
         console.log( e );

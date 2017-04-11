@@ -43,10 +43,17 @@ function fortnd ( n_dims ) {
         return _fortnd;
     };
 
+    _fortnd.poke = function () {
+        _worker.postMessage({
+            type: 'poke'
+        });
+    };
+
     _fortnd.read = function ( file ) {
         _worker.postMessage({
             type: 'read',
-            file: file
+            file: file,
+            n_dims: n_dims
         });
         return _fortnd;
     };
