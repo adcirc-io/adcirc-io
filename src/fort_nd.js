@@ -1,4 +1,4 @@
-import { fortnd_worker } from "./fort_nd_worker_new"
+import { fortnd_worker } from "./fort_nd_worker"
 import { timestep } from './timestep'
 import { dispatcher } from '../../adcirc-events/index'
 
@@ -41,12 +41,6 @@ function fortnd ( n_dims ) {
         }
 
         return _fortnd;
-    };
-
-    _fortnd.poke = function () {
-        _worker.postMessage({
-            type: 'poke'
-        });
     };
 
     _fortnd.read = function ( file ) {
