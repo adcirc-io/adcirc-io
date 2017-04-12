@@ -139,3 +139,5 @@ export function fort63 () {
 export function fort64() {
     return fortnd( 2 );
 }
+
+export { fortnd }
