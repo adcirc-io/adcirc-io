@@ -23,7 +23,8 @@ function build_fortnd_worker () {
         header: null,
         ts_index: 0,
         node_index: 0,
-        finished: false
+        finished: false,
+        final_check: false
     };
 
     self.addEventListener( 'message', function ( message ) {
@@ -253,6 +254,13 @@ function build_fortnd_worker () {
 
                 mapping.finished = true;
                 post_finish();
+
+                if ( !mapping.final_check ) {
+
+                    mapping.final_check = true;
+                    check_queue();
+
+                }
 
             }
 
