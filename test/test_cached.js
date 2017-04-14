@@ -7,16 +7,13 @@ var progress_text = document.getElementById( 'percent' );
 
 function test_fort_63 () {
 
-    var current = 0;
-    var requested;
-
-    var f63 = adcirc.fortnd_cached( 1, 20 )
+    var f63 = adcirc.fort63_cached( 20 )
         .on( 'start', start )
         .on( 'progress', progress )
         .on( 'finish', finish )
-        .on( 'gl', function () {
+        .on( 'timestep', function ( event ) {
 
-            get_timestep( 0 );
+            console.log( event.timestep.index() );
 
         })
         .open( f63_picker.files[0] );
@@ -27,26 +24,17 @@ function test_fort_63 () {
 
             case 'ArrowRight':
 
-                get_timestep( current + 1 );
+                f63.next_timestep();
                 break;
 
             case 'ArrowLeft':
 
-                get_timestep( current - 1 );
+                f63.previous_timestep();
                 break;
 
         }
 
     });
-
-    function get_timestep ( index ) {
-
-        if ( Math.abs( index - current ) == 1 ) {
-            current = index;
-            console.log( f63.timestep( current ).index() );
-        }
-
-    }
 
 }
 

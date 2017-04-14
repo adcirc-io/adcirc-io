@@ -4,6 +4,9 @@ import { dispatcher } from '../../adcirc-events/index'
 
 function fortnd_cached ( n_dims, size ) {
 
+    var _current_timestep;
+    var _max_timestep;
+
     var _file = fortnd( n_dims );
     var _fortnd = dispatcher();
 
@@ -26,7 +29,16 @@ function fortnd_cached ( n_dims, size ) {
     // Handle events
     _file.on( 'info', on_info );
 
+
     _fortnd.next_timestep = function () {
+
+        if ( _current_timestep !== undefined ) {
+
+            if ( _current_timestep + 1 < _max_timestep ) {
+                get_timestep( _current_timestep + 1 );
+            }
+
+        }
 
     };
 
@@ -39,6 +51,14 @@ function fortnd_cached ( n_dims, size ) {
 
     _fortnd.previous_timestep = function () {
 
+        if ( _current_timestep !== undefined ) {
+
+            if ( _current_timestep - 1 >= 0 ) {
+                get_timestep( _current_timestep - 1 );
+            }
+
+        }
+
     };
 
     _fortnd.timestep = function ( index ) {
@@ -49,47 +69,50 @@ function fortnd_cached ( n_dims, size ) {
 
     return _fortnd;
 
-    // function dispatch_data ( index, data ) {
-    //
-    //     _fortnd.dispatch({
-    //         type: 'data',
-    //         index: index,
-    //         data: data.data()
-    //     });
-    //
-    //     return [index];
-    //
-    // }
+
+    function dispatch_timestep ( timestep ) {
+
+        _fortnd.dispatch({
+            type: 'timestep',
+            timestep: timestep
+        });
+
+    }
+
+    function get_timestep ( index ) {
+
+        var timestep = _gl_cache.get( index );
+        if ( timestep !== undefined ) {
+
+            _current_timestep = timestep.index();
+            dispatch_timestep( timestep );
+
+        }
+
+    }
+
 
     function on_info ( event ) {
 
+        _max_timestep = event.num_datasets;
+
         _left_cache
-            .max_size( event.num_datasets )
-            .range([0, size])
             .once( 'ready', function () {
-
-                console.log( 'left cache filled' );
-
                 _gl_cache
-                    .max_size( event.num_datasets )
-                    .range([0, 1])
                     .once( 'ready', function () {
 
-                        console.log( 'gl cache filled' );
-                        _fortnd.dispatch( 'gl' );
+                        get_timestep( 0 );
 
-                    });
-
-            });
+                    })
+                    .max_size( event.num_datasets )
+                    .range([0, 1])
+            })
+            .max_size( event.num_datasets )
+            .range([0, size]);
 
         _right_cache
             .max_size( event.num_datasets )
-            .range([size, 2*size])
-            .once( 'ready', function () {
-
-                console.log( 'right cache filled' );
-
-            });
+            .range([size, 2*size]);
 
         _fortnd.dispatch( event );
 
@@ -107,4 +130,10 @@ function fortnd_cached ( n_dims, size ) {
 
 }
 
-export { fortnd_cached }
+export function fort63_cached ( size ) {
+    return fortnd_cached( 1, size );
+}
+
+export function fort64_cached ( size ) {
+    return fortnd_cached( 2, size );
+}
