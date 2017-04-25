@@ -99,9 +99,10 @@ function fortnd_cached ( n_dims, size ) {
         _left_cache
             .once( 'ready', function () {
                 _gl_cache
-                    .once( 'ready', function () {
+                    .once( 'ready', function ( event ) {
 
                         get_timestep( 0 );
+                        _fortnd.dispatch( event );
 
                     })
                     .max_size( event.num_datasets )
