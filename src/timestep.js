@@ -9,6 +9,7 @@ function timestep ( message ) {
     var _index;
     var _model_time;
     var _model_timestep;
+    var _num_datasets;
 
     if ( message.hasOwnProperty( 'data_range' ) && message.hasOwnProperty( 'dimensions' ) &&
          message.hasOwnProperty( 'model_time' ) && message.hasOwnProperty( 'model_timestep' ) &&
@@ -21,6 +22,7 @@ function timestep ( message ) {
             _index = message.index;
             _model_time = message.model_time;
             _model_timestep = message.model_timestep;
+            _num_datasets = message.num_datasets;
             _array = new Float32Array( message.array );
 
         } catch ( e ) {
@@ -68,6 +70,12 @@ function timestep ( message ) {
     _timestep.model_timestep = function ( _ ) {
         if ( !arguments.length ) return _model_timestep;
         _model_timestep = _;
+        return _timestep;
+    };
+
+    _timestep.num_datasets = function ( _ ) {
+        if ( !arguments.length ) return _num_datasets;
+        _num_datasets = _;
         return _timestep;
     };
 

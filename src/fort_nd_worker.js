@@ -334,6 +334,7 @@ function build_fortnd_worker () {
             index: timestep.index,
             model_time: timestep.model_time,
             model_timestep: timestep.timestep,
+            num_datasets: num_datasets,
             array: timestep.array.buffer
         };
 
