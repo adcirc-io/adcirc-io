@@ -15,6 +15,25 @@ function fortnd ( n_dims ) {
     var _worker = fortnd_worker();
     var _fortnd = dispatcher();
 
+    _fortnd.timeseries = function ( node_number, callback ) {
+
+        if ( typeof callback === 'function' ) {
+
+            _fortnd.once( 'timeseries' + node_number, function ( event ) {
+
+                callback( event );
+
+            });
+
+        }
+
+        _worker.postMessage({
+            type: 'timeseries',
+            node_number: node_number
+        });
+
+    };
+
     // Kick off the loading of a specific timestep. Optionally
     // pass in a callback that will be called only once when
     // the data is loaded. The 'timestep' event will also
@@ -104,6 +123,29 @@ function fortnd ( n_dims ) {
             case 'error':
 
                 _fortnd.dispatch( { type: 'error', error: message.error } );
+                break;
+
+            case 'timeseries':
+
+                var _node_number = message.node_number;
+
+                var timeseries = {
+                    array: new Float32Array( message.array ),
+                    data_range: message.data_range,
+                    dimensions: message.dimensions,
+                    node_number: message.node_number
+                };
+
+                _fortnd.dispatch({
+                    type: 'timeseries' + _node_number,
+                    timeseries: timeseries
+                });
+
+                _fortnd.dispatch({
+                    type: 'timeseries',
+                    timeseries: timeseries
+                });
+
                 break;
 
             case 'timestep':

@@ -61,6 +61,12 @@ function fortnd_cached ( n_dims, size ) {
 
     };
 
+    _fortnd.timeseries = function ( node_number, callback ) {
+
+        return _file.timeseries( node_number, callback );
+
+    };
+
     _fortnd.timestep = function ( index ) {
 
         return _gl_cache.get( index );

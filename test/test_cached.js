@@ -32,6 +32,10 @@ function test_fort_63 () {
                 f63.previous_timestep();
                 break;
 
+            case 'ArrowUp':
+
+                f63.timeseries( 1000, console.log );
+                break;
         }
 
     });

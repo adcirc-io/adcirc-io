@@ -27,6 +27,10 @@ function build_fortnd_worker () {
         final_check: false
     };
 
+    var nodal_timeseries = { seconds: [], timestep: [] };
+    var mints = [];
+    var maxts = [];
+
     self.addEventListener( 'message', function ( message ) {
 
         message = message.data;
@@ -37,12 +41,21 @@ function build_fortnd_worker () {
 
                 file = message.file;
                 num_dims = message.n_dims;
+
+                enqueue( { type: 'prep_timeseries' } );
+
                 read_header();
+                break;
+
+            case 'timeseries':
+
+                enqueue( { type: 'timeseries', node_number: message.node_number } );
+                if ( mapping.finished && !dequeueing ) check_queue();
                 break;
 
             case 'timestep':
 
-                enqueue( message.index );
+                enqueue( { type: 'timestep', index: message.index } );
                 if ( mapping.finished && !dequeueing ) check_queue();
                 break;
 
@@ -52,21 +65,39 @@ function build_fortnd_worker () {
 
     function check_queue () {
 
-        var index;
+        var task;
         var wait = wait_queue;
         wait_queue = [];
         while ( wait.length > 0 ) {
 
-            index = wait.shift();
-            enqueue( index );
+            task = wait.shift();
+            enqueue( task );
 
         }
 
-        index = process_queue.shift();
-        if ( index !== undefined ) {
+        task = process_queue.shift();
+
+        if ( task !== undefined ) {
 
             dequeueing = true;
-            load_timestep( index );
+
+            if ( task.type === 'timestep' ) {
+
+                load_timestep( task.index );
+
+            }
+
+            else if ( task.type === 'timeseries' ) {
+
+                load_timeseries( task.node_number );
+
+            }
+
+            else if ( task.type === 'prep_timeseries' ) {
+
+                load_all_timeseries();
+
+            }
 
         } else {
 
@@ -82,17 +113,217 @@ function build_fortnd_worker () {
 
     }
 
-    function enqueue ( index ) {
+    function enqueue ( task ) {
 
-        if ( index < timesteps.length ) {
+        if ( task.type === 'timestep' ) {
 
-            process_queue.push( index );
+            if ( task.index < timesteps.length ) {
 
-        } else {
+                process_queue.push( task );
 
-            wait_queue.push( index );
+            } else {
+
+                wait_queue.push( task );
+
+            }
 
         }
+
+        else if ( task.type === 'timeseries' || task.type === 'prep_timeseries' ) {
+
+            if ( mapping.finished ) {
+
+                process_queue.push( task );
+
+            } else {
+
+                wait_queue.push( task );
+
+            }
+
+        }
+
+    }
+
+    function load_all_timeseries () {
+
+        post_start();
+
+        var newline_regex = /\r?\n/g;
+        var nonwhite_regex = /\S+/g;
+
+        var reader = new FileReaderSync();
+        var data = reader.readAsText( file );
+        var lines = data.split( newline_regex );
+
+        // Get info about the data
+        var infoline = lines[1].match( nonwhite_regex );
+        var num_nodes = parseInt( infoline[1] );
+        var num_ts = parseInt( infoline[0] );
+
+        // Create empty lists
+        for ( var node=0; node<num_nodes; ++node ) {
+
+            nodal_timeseries[ (node+1).toString() ] = [];
+
+        }
+
+        // Read data
+        for ( var ts=0; ts<num_ts; ++ts ) {
+
+            var start_line = 2 + ts * ( num_nodes + 1 );
+            var start_line_dat = lines[ start_line ].match( nonwhite_regex );
+
+            nodal_timeseries.seconds.push( parseFloat( start_line_dat[ 0 ] ) );
+            nodal_timeseries.timestep.push( parseInt( start_line_dat[ 1 ] ) );
+
+            var currmin = Infinity;
+            var currmax = -Infinity;
+
+            post_progress( 100 * ts / num_datasets );
+
+            for ( node = 1; node < num_nodes + 1; ++node ) {
+
+                var dat = parseFloat( lines[ start_line + node ].match( nonwhite_regex )[ 1 ] );
+                if ( dat != -99999 ) {
+
+                    nodal_timeseries[ node.toString() ].push( dat );
+
+                    if ( dat > currmax ) currmax = dat;
+                    if ( dat < currmin ) currmin = dat;
+
+                } else {
+
+                    nodal_timeseries[ node.toString() ].push( null );
+
+                }
+
+            }
+
+            if ( currmax != Infinity ) {
+                maxts.push( currmax );
+            } else {
+                maxts.push( null );
+            }
+
+            if ( currmin != Infinity ) {
+                mints.push( currmin );
+            } else {
+                mints.push( null );
+            }
+
+        }
+
+        post_finish();
+        post_timeseries_ready();
+
+        check_queue();
+
+    }
+
+    function load_timeseries ( node_number ) {
+
+        var timeseries = {
+            array: new Float32Array( nodal_timeseries[ node_number ] ),
+            node_number: node_number,
+            min: [ mints[node_number-1] ],
+            max: [ maxts[ node_number-1] ]
+        };
+
+        post_timeseries( timeseries );
+
+    }
+
+    function load_timeseries_async ( node_number ) {
+
+        var ts = 0;
+        var location = timesteps[ ts ];
+        var block_size = 1024 * 1024 * 5;
+
+        var timeseries = {
+            array: new Float32Array( num_dims * num_datasets ),
+            node_number: node_number,
+            min: ( new Array( num_dims ) ).fill( Infinity ),
+            max: ( new Array( num_dims ) ).fill( -Infinity )
+        };
+
+        var match, dat, val;
+        var header;
+        var val_index = 0;
+        var found = false;
+
+        function parse_block ( data ) {
+
+            var regex_line = /.*\r?\n/g;
+            var regex_nonwhite = /\S+/g;
+
+            while ( ( match = regex_line.exec( data ) ) !== null && val_index < num_dims * num_datasets ) {
+
+                if ( !header ) {
+
+                    header = match[0];
+
+                } else {
+
+                    dat = match[0].match( regex_nonwhite );
+                    val = parseInt( dat[0] );
+
+                    if ( val == node_number ) {
+
+                        found = true;
+
+                        for ( var i=0; i<num_dims; ++i ) {
+
+                            val = parseFloat( dat[1+i] );
+                            timeseries.array[ val_index++ ] = val;
+
+                            if ( val !== -99999 ) {
+                                if ( val < timeseries.min[ i ] ) timeseries.min[ i ] = val;
+                                else if ( val > timeseries.max[ i ] ) timeseries.max[ i ] = val;
+                            }
+
+                        }
+
+                        header = null;
+                        ts += 1;
+
+                        if ( ts < num_datasets ) {
+
+                            location = timesteps[ ts ];
+                            break;
+
+                        } else {
+
+                            post_timeseries( timeseries );
+                            check_queue();
+
+                        }
+
+                    } else {
+
+                        found = false;
+
+                    }
+
+                }
+
+            }
+
+            if ( !found ) {
+
+                location += block_size;
+
+            }
+
+            if ( val_index < num_datasets*num_dims ) {
+
+                reader.read_block( location, location + block_size, parse_block );
+
+            }
+
+        }
+
+        reader.read_block( location, location + block_size, parse_block );
 
     }
 
@@ -316,6 +547,38 @@ function build_fortnd_worker () {
 
         self.postMessage({
             type: 'start'
+        });
+
+    }
+
+    function post_timeseries ( timeseries ) {
+
+        var ranges = [];
+        console.log( timeseries.min );
+        console.log( timeseries.max );
+        for ( var i=0; i<num_dims; ++i ) {
+            ranges.push( [ timeseries.min[i], timeseries.max[i] ] );
+        }
+
+        var message = {
+            type: 'timeseries',
+            data_range: ranges,
+            dimensions: num_dims,
+            node_number: timeseries.node_number,
+            array: timeseries.array.buffer
+        };
+
+        self.postMessage(
+            message,
+            [ message.array ]
+        );
+
+    }
+
+    function post_timeseries_ready () {
+
+        self.postMessage({
+            type: 'timeseries_ready'
         });
 
     }
