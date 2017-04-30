@@ -58,7 +58,7 @@ function build_fort14_worker () {
 
                 file_size = message.file.size;
 
-                post_start();
+                post_start( 'load_mesh' );
 
                 reader = file_reader( message.file )
                     .block_callback( parse_data )
@@ -109,7 +109,7 @@ function build_fort14_worker () {
     function done () {
 
         parse_data( '\n' );
-        post_finish();
+        post_finish( 'load_mesh' );
         check_queues();
 
     }
@@ -149,7 +149,7 @@ function build_fort14_worker () {
             // Progress stuff
             if ( 100 * ( file_loc + match.index ) / file_size > next_progress ) {
 
-                post_progress( next_progress );
+                post_progress( next_progress, 'load_mesh' );
                 next_progress += progress_interval;
 
             }
@@ -321,23 +321,38 @@ function build_fort14_worker () {
 
     }
 
-    function post_start () {
-        self.postMessage({
+    function post_start ( task ) {
+
+        var message = {
             type: 'start'
-        });
+        };
+
+        if ( task ) message.task = task;
+
+        self.postMessage( message );
     }
 
-    function post_progress ( progress ) {
-        self.postMessage({
+    function post_progress ( progress, task ) {
+
+        var message = {
             type: 'progress',
             progress: progress
-        });
+        };
+
+        if ( task ) message.task = task;
+
+        self.postMessage( message );
     }
 
-    function post_finish () {
-        self.postMessage({
+    function post_finish ( task ) {
+
+        var message = {
             type: 'finish'
-        });
+        };
+
+        if ( task ) message.task = task;
+
+        self.postMessage( message );
     }
 
     function post_elements () {

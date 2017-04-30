@@ -18,6 +18,8 @@ function test_fort_63 () {
         })
         .open( f63_picker.files[0] );
 
+    var index = 0;
+
     d3.select( 'body' ).on( 'keydown', function () {
 
         switch ( d3.event.key ) {
@@ -34,7 +36,10 @@ function test_fort_63 () {
 
             case 'ArrowUp':
 
-                f63.timeseries( 1000, console.log );
+                console.log( 'Requesting node ' + index );
+                f63.timeseries( index++, function ( event ) {
+                    console.log( event.timeseries.node_number );
+                } );
                 break;
         }
 

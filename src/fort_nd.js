@@ -100,22 +100,19 @@ function fortnd ( n_dims ) {
 
             case 'start':
 
-                _fortnd.dispatch( { type: 'start' } );
+                _fortnd.dispatch( message );
 
                 break;
 
             case 'progress':
 
-                _fortnd.dispatch( {
-                    type: 'progress',
-                    progress: message.progress
-                } );
+                _fortnd.dispatch( message );
 
                 break;
 
             case 'finish':
 
-                _fortnd.dispatch( { type: 'finish' } );
+                _fortnd.dispatch( message );
                 _fortnd.dispatch( { type: 'ready' } );
 
                 break;
@@ -146,6 +143,11 @@ function fortnd ( n_dims ) {
                     timeseries: timeseries
                 });
 
+                break;
+
+            case 'timeseries_ready':
+
+                _fortnd.dispatch( message );
                 break;
 
             case 'timestep':

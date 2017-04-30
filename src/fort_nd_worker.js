@@ -49,6 +49,7 @@ function build_fortnd_worker () {
 
             case 'timeseries':
 
+                console.log( 'timeseries ' + message.node_number, mapping.finished, dequeueing );
                 enqueue( { type: 'timeseries', node_number: message.node_number } );
                 if ( mapping.finished && !dequeueing ) check_queue();
                 break;
@@ -147,7 +148,7 @@ function build_fortnd_worker () {
 
     function load_all_timeseries () {
 
-        post_start();
+        post_start( 'timeseries_prep' );
 
         var newline_regex = /\r?\n/g;
         var nonwhite_regex = /\S+/g;
@@ -180,7 +181,7 @@ function build_fortnd_worker () {
             var currmin = Infinity;
             var currmax = -Infinity;
 
-            post_progress( 100 * ts / num_datasets );
+            post_progress( 100 * ts / num_datasets, 'timeseries_prep' );
 
             for ( node = 1; node < num_nodes + 1; ++node ) {
 
@@ -214,14 +215,15 @@ function build_fortnd_worker () {
 
         }
 
-        post_finish();
-        post_timeseries_ready();
+        post_finish( 'timeseries_prep' );
 
         check_queue();
 
     }
 
     function load_timeseries ( node_number ) {
+
+        console.log( 'Loading timeseries for node ' + node_number );
 
         var timeseries = {
             array: new Float32Array( nodal_timeseries[ node_number ] ),
@@ -231,6 +233,7 @@ function build_fortnd_worker () {
         };
 
         post_timeseries( timeseries );
+        check_queue();
 
     }
 
@@ -457,7 +460,7 @@ function build_fortnd_worker () {
                     mapping.header = match[ 0 ];
 
                     timesteps[ mapping.ts_index++ ] = mapping.location;
-                    post_progress( 100 * ( mapping.ts_index / num_datasets ) );
+                    post_progress( 100 * ( mapping.ts_index / num_datasets ), 'map_timesteps' );
 
 
                 } else {
@@ -484,7 +487,7 @@ function build_fortnd_worker () {
             } else {
 
                 mapping.finished = true;
-                post_finish();
+                post_finish( 'map_timesteps' );
 
                 if ( !mapping.final_check ) {
 
@@ -512,11 +515,15 @@ function build_fortnd_worker () {
 
     }
 
-    function post_finish () {
+    function post_finish ( task ) {
 
-        self.postMessage({
+        var message = {
             type: 'finish'
-        });
+        };
+
+        if ( task ) message.task = task;
+
+        self.postMessage( message );
 
     }
 
@@ -534,28 +541,34 @@ function build_fortnd_worker () {
 
     }
 
-    function post_progress ( percent ) {
+    function post_progress ( percent, task ) {
 
-        self.postMessage({
+        var event = {
             type: 'progress',
             progress: percent
-        });
+        };
+
+        if ( task ) event.task = task;
+
+        self.postMessage( event );
 
     }
 
-    function post_start () {
+    function post_start ( task ) {
 
-        self.postMessage({
+        var message = {
             type: 'start'
-        });
+        };
+
+        if ( task ) message.task = task;
+
+        self.postMessage( message );
 
     }
 
     function post_timeseries ( timeseries ) {
 
         var ranges = [];
-        console.log( timeseries.min );
-        console.log( timeseries.max );
         for ( var i=0; i<num_dims; ++i ) {
             ranges.push( [ timeseries.min[i], timeseries.max[i] ] );
         }
@@ -572,14 +585,6 @@ function build_fortnd_worker () {
             message,
             [ message.array ]
         );
-
-    }
-
-    function post_timeseries_ready () {
-
-        self.postMessage({
-            type: 'timeseries_ready'
-        });
 
     }
 

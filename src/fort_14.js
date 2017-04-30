@@ -44,22 +44,19 @@ export function fort14 () {
 
             case 'start':
 
-                _fort14.dispatch( { type: 'start' } );
+                _fort14.dispatch( message );
 
                 break;
 
             case 'progress':
 
-                _fort14.dispatch( {
-                    type: 'progress',
-                    progress: message.progress
-                } );
+                _fort14.dispatch( message );
 
                 break;
 
             case 'finish':
 
-                _fort14.dispatch( { type: 'finish' } );
+                _fort14.dispatch( message );
 
                 _worker.postMessage({
                     type: 'get',
