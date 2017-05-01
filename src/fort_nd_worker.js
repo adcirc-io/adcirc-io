@@ -49,7 +49,6 @@ function build_fortnd_worker () {
 
             case 'timeseries':
 
-                console.log( 'timeseries ' + message.node_number, mapping.finished, dequeueing );
                 enqueue( { type: 'timeseries', node_number: message.node_number } );
                 if ( mapping.finished && !dequeueing ) check_queue();
                 break;
@@ -188,16 +187,12 @@ function build_fortnd_worker () {
                 var dat = parseFloat( lines[ start_line + node ].match( nonwhite_regex )[ 1 ] );
                 if ( dat != -99999 ) {
 
-                    nodal_timeseries[ node.toString() ].push( dat );
-
                     if ( dat > currmax ) currmax = dat;
                     if ( dat < currmin ) currmin = dat;
 
-                } else {
-
-                    nodal_timeseries[ node.toString() ].push( null );
-
                 }
+
+                nodal_timeseries[ node.toString() ].push( dat );
 
             }
 
@@ -223,13 +218,11 @@ function build_fortnd_worker () {
 
     function load_timeseries ( node_number ) {
 
-        console.log( 'Loading timeseries for node ' + node_number );
-
         var timeseries = {
             array: new Float32Array( nodal_timeseries[ node_number ] ),
             node_number: node_number,
-            min: [ mints[node_number-1] ],
-            max: [ maxts[ node_number-1] ]
+            min: [ mints[ node_number-1 ] ],
+            max: [ maxts[ node_number-1 ] ]
         };
 
         post_timeseries( timeseries );
