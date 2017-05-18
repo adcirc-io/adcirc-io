@@ -1,6 +1,6 @@
 import { fort14_worker } from "./fort_14_worker"
 import { nest } from './nest'
-import { dispatcher } from '../../adcirc-events/index'
+import { dispatcher } from 'adcirc-events'
 
 export function fort14 () {
 

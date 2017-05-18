@@ -4,6 +4,8 @@
   "license": "BSD-3-Clause",
   "homepage": "https://github.com/atdyer/adcirc-io",
   "main": "build/adcirc-io.js",
+  "module": "index",
+  "jsnext:main": "index",
   "author": {
     "name": "Tristan Dyer",
     "url": "https://github.com/atdyer"
@@ -19,6 +21,10 @@
   "devDependencies": {
     "package-preamble": "0.0.2",
     "rollup": "^0.41.4",
+    "rollup-plugin-node-resolve": "^3.0.0",
     "rollup-watch": "^3.2.2"
+  },
+  "dependencies": {
+    "adcirc-events": "^1.0.6"
   }
 }
