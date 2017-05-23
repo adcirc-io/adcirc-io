@@ -15,16 +15,23 @@
     "url": "https://github.com/atdyer/adcirc-io.git"
   },
   "scripts": {
-    "dev": "rollup -w --banner \"$(preamble)\" -f umd -n adcirc -o build/adcirc-io.js -- index.js",
-    "prepublish": "rm -rf build && mkdir build && rollup --banner \"$(preamble)\" -f umd -n adcirc -o build/adcirc-io.js -- index.js"
+    "dev": "rollup -c -w",
+    "build": "rollup -c",
+    "uglify": "uglifyjs --preamble \"$(preamble)\" build/adcirc-io.js -c -m -o build/adcirc-io.min.js",
+    "pretest": "rm -rf build && mkdir build && npm run build",
+    "test": "tape 'test/**/*-test.js'",
+    "prepublish": "npm run test && npm run uglify",
+    "postpublish": "git push && git push --tags && zip -j build/adcirc-io.zip -- LICENSE README.md build/adcirc-io.js build/adcirc-io.min.js"
   },
   "devDependencies": {
     "package-preamble": "0.0.2",
     "rollup": "^0.41.4",
     "rollup-plugin-node-resolve": "^3.0.0",
-    "rollup-watch": "^3.2.2"
+    "rollup-watch": "^3.2.2",
+    "tape": "^4.6.3",
+    "uglify-js": "^2.8.11"
   },
   "dependencies": {
-    "adcirc-events": "^1.0.6"
+    "adcirc-events": "^1.0.8"
   }
 }
