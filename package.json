@@ -32,6 +32,7 @@
     "uglify-js": "^2.8.11"
   },
   "dependencies": {
-    "adcirc-events": "^1.0.8"
+    "adcirc-cache": "^1.0.1",
+    "adcirc-events": "^1.0.10"
   }
 }

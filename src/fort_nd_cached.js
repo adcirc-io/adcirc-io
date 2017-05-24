@@ -1,6 +1,6 @@
-import { cache } from '../../adcirc-cache/index'
+import { cache } from 'adcirc-cache'
 import { fortnd } from './fort_nd'
-import { dispatcher } from '../../adcirc-events/index'
+import { dispatcher } from 'adcirc-events'
 
 function fortnd_cached ( n_dims, size ) {
 

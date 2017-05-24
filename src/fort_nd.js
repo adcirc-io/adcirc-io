@@ -1,6 +1,6 @@
 import { fortnd_worker } from "./fort_nd_worker"
 import { timestep } from './timestep'
-import { dispatcher } from '../../adcirc-events/index'
+import { dispatcher } from 'adcirc-events'
 
 function fortnd ( n_dims ) {
 
