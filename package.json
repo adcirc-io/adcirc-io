@@ -12,7 +12,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/atdyer/adcirc-io.git"
+    "url": "https://github.com/adcirc-io/adcirc-io.git"
   },
   "scripts": {
     "dev": "rollup -c -w",
