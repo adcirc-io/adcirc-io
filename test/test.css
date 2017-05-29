@@ -1,0 +1,41 @@
+body {
+    width: 900px;
+    margin: auto;
+    padding-top: 20px;
+}
+label {
+    padding-right: 10px;
+}
+div {
+    padding: 10px;
+}
+.progress {
+    position: relative;
+    width: 100%;
+    height: 30px;
+    border-left: 1px solid darkslategray;
+    border-right: 1px solid darkslategray;
+    padding: 0;
+    margin: 10px 0;
+}
+.bar {
+    width: 0;
+    height: 100%;
+    padding: 0;
+    background-color: lightsteelblue;
+}
+.text {
+    font-family: monospace;
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    padding: 0;
+    text-align: center;
+    line-height: 30px;
+}
+
+.log-item {
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2), 0 -1px 0 rgba(0,0,0,0.02)
+}
