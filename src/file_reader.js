@@ -54,25 +54,25 @@ export default function file_reader ( file ) {
 
     _r.block_callback = function ( _ ) {
         if ( !arguments.length ) return _block_callback;
-        if ( typeof _ == 'function' ) _block_callback = _;
+        if ( typeof _ === 'function' ) _block_callback = _;
         return _r;
     };
 
     _r.continue_callback = function ( _ ) {
         if ( !arguments.length ) return _continue_callback;
-        if ( typeof _ == 'function' ) _continue_callback = _;
+        if ( typeof _ === 'function' ) _continue_callback = _;
         return _r;
     };
 
     _r.finished_callback = function ( _ ) {
         if ( !arguments.length ) return _finished_callback;
-        if ( typeof _ == 'function' ) _finished_callback = _;
+        if ( typeof _ === 'function' ) _finished_callback = _;
         return _r;
     };
 
     _r.error_callback = function ( _ ) {
         if ( !arguments.length ) return _error_callback;
-        if ( typeof _ == 'function' ) _error_callback = _;
+        if ( typeof _ === 'function' ) _error_callback = _;
         return _r;
     };
 

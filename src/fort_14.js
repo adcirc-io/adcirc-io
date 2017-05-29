@@ -13,9 +13,7 @@ export function fort14 () {
     _fort14.elements = function ( _ ) {
 
         if ( !arguments.length ) return _elements;
-
         _elements = _;
-
         return _fort14;
 
     };
@@ -23,9 +21,7 @@ export function fort14 () {
     _fort14.nodes = function ( _ ) {
 
         if ( !arguments.length ) return _nodes;
-
         _nodes = _;
-
         return _fort14;
     };
 
@@ -34,6 +30,7 @@ export function fort14 () {
             type: 'read',
             file: file
         });
+        return _fort14;
     };
 
     _worker.addEventListener( 'message', function ( message ) {

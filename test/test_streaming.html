@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Streaming Test</title>
+
+    <script src="d3.v4.min.js"></script>
+    <script src="../build/adcirc-io.js"></script>
+
+</head>
+<body>
+    <input type="file" id="f14">
+    <script>
+        var input = document.getElementById( 'f14' );
+        input.addEventListener( 'change', function () {
+
+            var file = this.files[0];
+            var worker = adcirc.fort14_worker_streaming();
+            var quadtree = d3.quadtree();
+
+            var start, finish, stream_size;
+
+            worker.addEventListener( 'message', function ( message ) {
+
+                if ( message.data.type === 'start' ) {
+
+//                    console.log( 'Starting test with stream size ' + message.data.stream_size );
+                    stream_size = message.data.stream_size;
+                    start = performance.now();
+
+                }
+
+                else if ( message.data.type === 'nodes' ) {
+
+                    var data = message.data.data;
+
+                    for ( var i=0; i<data.length; ++i  ) {
+
+                        quadtree.add( data[i] );
+
+                    }
+
+                }
+
+                else if ( message.data.type === 'finish' ) {
+
+                    finish = performance.now();
+                    console.log( 'Stream size:', stream_size, 'Time:', (finish-start), quadtree.size() );
+                    quadtree = d3.quadtree();
+
+                }
+
+            });
+
+            worker.postMessage({
+                type: 'read',
+                file: file
+            });
+
+        });
+
+    </script>
+</body>
+</html>

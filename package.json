@@ -17,7 +17,7 @@
   "scripts": {
     "dev": "rollup -c -w",
     "build": "rollup -c",
-    "uglify": "uglifyjs --preamble \"$(preamble)\" build/adcirc-io.js -c -m -r build_fort14_worker,build_fortnd_worker -o build/adcirc-io.min.js",
+    "uglify": "uglifyjs --preamble \"$(preamble)\" build/adcirc-io.js -c -m -r build_fort14_worker,build_fortnd_worker,build_fort14_worker_streaming -o build/adcirc-io.min.js",
     "pretest": "rm -rf build && mkdir build && npm run build",
     "test": "tape 'test/**/*-test.js'",
     "prepublish": "npm run test && npm run uglify",
